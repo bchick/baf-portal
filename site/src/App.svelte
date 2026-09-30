@@ -5,16 +5,18 @@
   //
   // Routes: #/ (select) · #/cBAF · #/cBAF/SMARCA4 · #/gene/SMARCA4[/p.Arg1192His] · #/mouse
   // Keys:   ←/→ choose complex · Enter select · Esc back out one level
-  import { fly } from 'svelte/transition';
+  import { fly, fade } from 'svelte/transition';
   import { backOut, cubicOut } from 'svelte/easing';
   import { Tween } from 'svelte/motion';
   import Complex3D from './lib/Complex3D.svelte';
+  import Cartoon2D from './lib/Cartoon2D.svelte';
   import Lollipop from './lib/Lollipop.svelte';
   import MutationPanel from './lib/MutationPanel.svelte';
   import MorphOverlay from './lib/MorphOverlay.svelte';
   import SuggestButton from './lib/SuggestButton.svelte';
   import SuggestSheet from './lib/SuggestSheet.svelte';
   import { suggest, closeSuggest } from './lib/suggest.svelte.js';
+  import { affinageUrl } from './lib/config.js';
   import { route, href, go } from './lib/router.svelte.js';
   import * as data from './lib/data.js';
   import { colorOf, classKey, CLASS_ORDER, CLASS_COLOR } from './lib/colors.js';
@@ -26,6 +28,22 @@
   const LAZY_MODELS = import.meta.glob(['./lib/models/*.json', '!./lib/models/cBAF.json', '!./lib/models/index.json'],
     { import: 'default' });
   let models = $state.raw({ cBAF: cBAFModel });
+
+  // Stage view: spinning 3D model or flat 2D cartoon (complex view only; the
+  // select screen always spins). Remembered per browser; cartoon is forced when
+  // WebGL is unavailable.
+  const CARTOONS = import.meta.glob('./lib/cartoons/*.json', { import: 'default' });
+  let cartoons = $state.raw({});
+  let viewMode = $state((() => { try { return localStorage.getItem('stageMode') || '3d'; } catch { return '3d'; } })());
+  let noGL = $state(false);
+  $effect(() => { try { localStorage.setItem('stageMode', viewMode); } catch {} });
+  const showCartoon = $derived((viewMode === 'cartoon' || noGL) && view.kind === 'complex');
+  $effect(() => {
+    const id = view.kind === 'complex' ? view.id : null;
+    if (!id || !(viewMode === 'cartoon' || noGL) || cartoons[id]) return;
+    CARTOONS[`./lib/cartoons/${id}.json`]?.().then((c) => { cartoons = { ...cartoons, [id]: c }; });
+  });
+  let cartoonEl = $state();
   const loading = {};
   function loadModel(id) {
     if (models[id]) return Promise.resolve(models[id]);
@@ -309,6 +327,16 @@
         · <a href="https://www.genenames.org/data/gene-symbol-report/#!/hgnc_id/{s.hgnc_id}" target="_blank" rel="noopener" class="mono">{s.hgnc_id}</a>
       </p>
       {#if s.aliases?.length}<p class="aliases muted">Also: {s.aliases.join(', ')}</p>{/if}
+      <p class="learn">
+        <span class="muted">Learn more on Affinage:</span>
+        {#each [s.symbol, ...(sl?.members ?? []).filter((m) => m !== s.symbol)] as m, i (m)}
+          {#if i}<span class="muted" aria-hidden="true">·</span>{/if}
+          <a href={affinageUrl(m)} target="_blank" rel="noopener" class:self={m === s.symbol}
+             title="{m} on Affinage: mechanistic annotation from the literature{m === s.symbol ? '' : ' (paralog in this slot)'}">
+            {m}<span aria-hidden="true"> ↗</span>
+          </a>
+        {/each}
+      </p>
     </header>
 
     {#if sl && sl.members.length > 1}
@@ -507,12 +535,45 @@
   {:else if onStage}
     <div class="arena" class:selecting={view.kind === 'select'}>
       <div class="stage">
-        <Complex3D model={shownModel} mode={view.kind === 'select' ? 'select' : 'complex'}
-                   selected={sym} highlight={hotList} complex={{ id: stageId, ...comp.complexes[stageId] }}
-                   {onpick} onhover={(s) => (hot3d = s)} onmorphsource={startMorph} />
-        <p class="stage-hint" class:gone={view.kind !== 'select'}>
-          {MODEL_INDEX[stageId].pdb} · drag to rotate after selecting
-        </p>
+        {#if view.kind === 'complex' && !noGL}
+          <div class="mode-switch" role="radiogroup" aria-label="Stage view">
+            {#each [['3d', '3D'], ['cartoon', 'Cartoon']] as [m, label]}
+              <button role="radio" aria-checked={viewMode === m} class:on={viewMode === m} onclick={() => (viewMode = m)}>{label}</button>
+            {/each}
+          </div>
+        {/if}
+        <div class="layer" class:hidden-layer={showCartoon} inert={showCartoon}>
+          <Complex3D model={shownModel} mode={view.kind === 'select' ? 'select' : 'complex'}
+                     selected={sym} highlight={hotList} complex={{ id: stageId, ...comp.complexes[stageId] }}
+                     {onpick} onhover={(s) => (hot3d = s)} onmorphsource={showCartoon ? null : startMorph}
+                     onglfail={() => (noGL = true)} />
+        </div>
+        {#if showCartoon && cartoons[stageId]}
+          <div class="layer cartoon-layer" transition:fade={{ duration: ms(320) }}>
+            <Cartoon2D bind:this={cartoonEl} cartoon={cartoons[stageId]} model={models[stageId]}
+                       complex={{ id: stageId, ...comp.complexes[stageId] }} selected={sym} highlight={hotList}
+                       {onpick} onhover={(s) => (hot3d = s)} onmorphsource={startMorph} />
+            {#if cartoons[stageId].ghosts_flat.length}
+              <div class="unresolved">
+                <span class="muted">Not resolved in {cartoons[stageId].pdb}:</span>
+                {#each cartoons[stageId].ghosts_flat as g (g.slot)}
+                  <button class="chip" class:on={g.members.includes(sym)} onclick={() => onpick(g.members[0])}>{g.slot}</button>
+                {/each}
+              </div>
+            {/if}
+          </div>
+        {/if}
+        {#if showCartoon && cartoons[stageId]}
+          <p class="stage-hint cartoon-caption">
+            Front view of <a href="https://www.rcsb.org/structure/{cartoons[stageId].pdb}" target="_blank" rel="noopener">{cartoons[stageId].pdb}</a>.
+            Each colour is the part of a subunit visible from this side; dashed circles are members not resolved in the structure.
+            <button class="linkish" onclick={() => cartoonEl?.saveSvg()}>Save SVG</button>
+          </p>
+        {:else}
+          <p class="stage-hint" class:gone={view.kind !== 'select'}>
+            {MODEL_INDEX[stageId].pdb} · drag to rotate after selecting
+          </p>
+        {/if}
       </div>
       <aside class="deck">
         {#key view.kind === 'select' ? 'select' : `${complex.id}/${sym ?? ''}`}
@@ -615,6 +676,23 @@
     background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--surface) 90%, transparent), transparent 70%);
     transition: background 600ms;
   }
+  .arena .stage { isolation: isolate; }
+  .layer { transition: opacity 320ms ease, transform 420ms cubic-bezier(.3,1.2,.5,1); }
+  .hidden-layer { opacity: 0; transform: scale(0.97); pointer-events: none; }
+  .cartoon-layer { position: absolute; inset: 0 0 auto 0; }
+  .cartoon-layer .unresolved { position: absolute; left: 0; right: 0; bottom: 8px; display: flex; flex-wrap: wrap; gap: 6px;
+    justify-content: center; align-items: center; font-size: 12.5px; }
+  .cartoon-layer .unresolved .chip { cursor: pointer; border-style: dashed; }
+  .mode-switch { position: absolute; top: 8px; right: 8px; z-index: 5; display: flex; gap: 2px; padding: 3px;
+    border-radius: 999px; background: color-mix(in srgb, var(--surface) 85%, transparent); border: 1px solid var(--line);
+    box-shadow: 0 2px 8px rgb(0 0 0 / 8%); backdrop-filter: blur(6px); }
+  .mode-switch button { all: unset; cursor: pointer; font-size: 12.5px; font-weight: 600; padding: 4px 12px; border-radius: 999px;
+    color: var(--ink-2); transition: background 200ms, color 200ms; }
+  .mode-switch button.on { background: var(--ink); color: var(--bg); }
+  .mode-switch button:focus-visible { outline: 2px solid var(--focus); }
+  .cartoon-caption { max-width: 560px; margin: 4px auto 0; line-height: 1.5; }
+  .linkish { all: unset; cursor: pointer; color: var(--accent); font-weight: 600; margin-left: 4px; }
+  .linkish:hover { text-decoration: underline; }
   .stage-hint { text-align: center; font-size: 12px; color: var(--ink-3); margin: 4px 0 0; letter-spacing: 0.04em; transition: opacity 400ms; }
   .stage-hint.gone { opacity: 0; }
   /* in/out panels share one grid cell so they cross-fade without layout jumps */
@@ -707,6 +785,9 @@
   .absent { font-size: 13px; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--line); }
   .legend { font-size: 12.5px; color: var(--ink-3); margin: 10px 0 0; }
   .paralogs { font-size: 14px; margin: 0 0 14px; }
+  .learn { margin: 8px 0 0; font-size: 13px; display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+  .learn a { font-weight: 500; }
+  .learn a.self { font-weight: 700; }
 
   .stack { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; background: var(--bg-2); }
   .stack { transform-origin: left; animation: grow 900ms cubic-bezier(.2,.9,.3,1.1) 600ms both; }

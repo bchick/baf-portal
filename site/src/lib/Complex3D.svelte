@@ -16,7 +16,7 @@
 
   let {
     model, mode = 'complex', selected = null, highlight = null, complex = null,
-    onpick = () => {}, onhover = () => {}, onmorphsource = () => {},
+    onpick = () => {}, onhover = () => {}, onmorphsource = () => {}, onglfail = () => {},
   } = $props();
 
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -142,7 +142,7 @@
     if (!p) return;
     if (mode === 'complex' && selected && selected !== lastSelected && !reduce) {
       const points = screenPoints(p, selected);
-      if (points.length) onmorphsource({ sym: selected, points, color: colorOf(selected) });
+      if (points.length) onmorphsource?.({ sym: selected, points, color: colorOf(selected) });
     }
     lastSelected = mode === 'complex' ? selected : null;
     const f = mode === 'complex' ? focusOf(p, selected) : null;
@@ -557,7 +557,7 @@
   const activeSet = $derived(new Set(selected ? slotMates(selected) : []));
 
   onMount(() => {
-    try { initGL(); } catch (e) { console.error(e); glFailed = true; return; }
+    try { initGL(); } catch (e) { console.warn(e); glFailed = true; onglfail(); return; }
     inkCtx = ink.getContext('2d');
     readPalette();
     const ro = new ResizeObserver(() => {
@@ -572,7 +572,7 @@
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     const mq = matchMedia('(prefers-color-scheme: dark)');
     mq.addEventListener('change', readPalette);
-    const lost = (e) => { e.preventDefault(); glFailed = true; };
+    const lost = (e) => { e.preventDefault(); glFailed = true; onglfail(); };
     cvs.addEventListener('webglcontextlost', lost);
     kick();
     return () => {

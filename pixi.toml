@@ -23,10 +23,12 @@ numpy = "*"
 scipy = "*"
 gemmi = "*"
 pytest = "*"
+scikit-image = ">=0.26.0,<0.27"
 
 [tasks]
 build-data = "python -m pipeline.build"
 layout = "python -m pipeline.cartoon_layout"
 beads = "python -m pipeline.bead_model"
+cartoons = "python -m pipeline.cartoon2d"
 verify = "python -m pipeline.verify_composition"
 test = "pytest -q tests"

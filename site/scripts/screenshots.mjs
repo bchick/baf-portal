@@ -41,6 +41,19 @@ for (const [name, hash, w, scheme] of ROUTES) {
   await p.close();
 }
 
+// Cartoon (2D) view of each complex.
+for (const id of ['cBAF', 'PBAF', 'ncBAF']) {
+  const p = await page(1400, 'light');
+  await p.addInitScript(() => localStorage.setItem('stageMode', 'cartoon'));
+  await p.goto(BASE + '#/' + id);
+  await p.waitForTimeout(2200);
+  const ok = await p.evaluate(() => document.querySelectorAll('.cartoon2d .piece').length > 0);
+  await p.screenshot({ path: `${OUT}/cartoon-${id}.png`, fullPage: true });
+  if (p.errs.length || !ok) bad++;
+  console.log(`cartoon-${id}`.padEnd(16), p.errs.length ? 'ERR ' + p.errs.join(' | ') : ok ? 'ok' : 'NO CARTOON');
+  await p.close();
+}
+
 // Frame rate while spinning on the select screen (real clock).
 {
   const p = await page(1400, 'light');

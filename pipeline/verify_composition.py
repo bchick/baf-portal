@@ -11,6 +11,7 @@ Live (unless --offline), against the source APIs:
   * UniProt: accession is reviewed, human, primary gene = symbol, length
   * HGNC: ID approved, symbol matches, cross-references the UniProt accession
   * RCSB: structure exists and its primary-citation PMID is the one we cite
+  * Affinage: every subunit has a gene entry (the site links to it)
 
     pixi run verify                 # live
     pixi run verify --cached        # reuse data/cache/verify/ responses
@@ -240,6 +241,21 @@ def check_structures(comp: dict, f: Findings, refresh: bool) -> None:
                                   f"cited PMID {st.get('pmid')} title {cited.get('title', '')[:70]!r} (similarity {r:.2f})")
 
 
+def check_affinage(comp: dict, f: Findings, refresh: bool) -> None:
+    import requests
+    from .common import BROWSER_UA
+    for s in comp["subunits"]:
+        url = f"https://affinage.wi.mit.edu/api/gene/{s['symbol']}"
+        try:
+            r = requests.get(url, timeout=60, headers={"User-Agent": BROWSER_UA})
+            ok = r.status_code == 200 and r.json().get("gene") == s["symbol"]
+        except Exception as e:  # noqa: BLE001
+            f.warn(f"subunits[{s['symbol']}]", f"Affinage check failed: {e}")
+            continue
+        if not ok:
+            f.warn(f"subunits[{s['symbol']}]", f"no Affinage entry (HTTP {r.status_code}); the site's link would 404")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     g = ap.add_mutually_exclusive_group()
@@ -253,7 +269,7 @@ def main(argv=None) -> int:
     if not args.offline:
         refresh = not args.cached
         for name, check in [("PubMed", check_pubmed), ("UniProt", check_uniprot), ("HGNC", check_hgnc),
-                            ("RCSB", check_structures)]:
+                            ("RCSB", check_structures), ("Affinage", check_affinage)]:
             print(f"checking {name}…", flush=True)
             check(comp, f, refresh)
 

@@ -124,3 +124,42 @@ def test_pbrm1_maps_where_sifts_did_not():
     """SIFTS numbering for 7VDV PBRM1 matched UniProt at ~5%; alignment places it at the C-terminus."""
     _, res = _chain_res("PBAF", "PBRM1")
     assert res and all(1590 <= r <= 1681 for r in res)
+
+
+# ---- 2D cartoons (pipeline/cartoon2d.py) ---------------------------------------------
+
+CARTOONS = CURATED.parent.parent / "site" / "src" / "lib" / "cartoons"
+
+
+def test_cartoons_cover_every_modelled_subunit_and_parse():
+    import json
+    import re
+    for name in ("cBAF", "PBAF", "ncBAF"):
+        text = (CARTOONS / f"{name}.json").read_text()
+        assert "Infinity" not in text and "NaN" not in text
+        c = json.loads(text)
+        m = json.loads((MODELS / f"{name}.json").read_text())
+        modelled = {ch["symbol"] for ch in m["chains"] if ch["kind"] == "subunit"}
+        shown = {p["sym"] for p in c["pieces"] if p["sym"]}
+        assert shown | set(c["hidden"]) == modelled, name
+        x0, y0, size = c["frame"]
+        for p in c["pieces"]:
+            assert re.fullmatch(r"(M-?[\d.]+ -?[\d.]+(L-?[\d.]+ -?[\d.]+)+Z)+", p["d"]), (name, p["sym"])
+            assert x0 <= p["anchor"][0] <= x0 + size and y0 <= p["anchor"][1] <= y0 + size
+        assert [p["depth"] for p in c["pieces"]] == sorted(p["depth"] for p in c["pieces"])     # back to front
+        placed = [g for g in m["ghosts"] if g.get("anchor_subunits")]
+        assert len(c["ghosts"]) == len(placed) and len(c["ghosts_flat"]) == len(m["ghosts"]) - len(placed)
+
+
+def test_cartoon_framing_matches_the_3d_front_view():
+    """Same centre and radius as Complex3D, so the stage can cross-fade."""
+    import json
+    import numpy as np
+    for name in ("cBAF", "PBAF", "ncBAF"):
+        c = json.loads((CARTOONS / f"{name}.json").read_text())
+        b = np.array(json.loads((MODELS / f"{name}.json").read_text())["beads"]).reshape(-1, 4)[:, :3]
+        center = b.mean(0)
+        d = np.sort(np.linalg.norm(b - center, axis=1))
+        R = d[int(np.floor(0.99 * (len(d) - 1)))]
+        assert np.allclose(c["center"], center[:2], atol=0.1)
+        assert abs(c["frame"][2] - 2 * R / (0.94 * 1.02)) < 0.2
