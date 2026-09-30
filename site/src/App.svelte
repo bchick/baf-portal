@@ -17,7 +17,6 @@
   import { suggest, closeSuggest } from './lib/suggest.svelte.js';
   import { route, href, go } from './lib/router.svelte.js';
   import * as data from './lib/data.js';
-  import { DATA_GENES } from './lib/data.js';
   import { colorOf, classKey, CLASS_ORDER, CLASS_COLOR } from './lib/colors.js';
 
   // 3D models: the small index (structure, chain symbols) and cBAF's beads load
@@ -48,6 +47,8 @@
   const refs = $derived({ ...baseRefs, ...geneRefs });
   let manifest = $state(null);
   let loadError = $state(null);
+  // Subunits with mutation data: whatever the data build produced.
+  const DATA_GENES = $derived(manifest ? Object.keys(manifest.genes) : []);
 
   $effect(() => {
     Promise.all([data.complexes(), data.refs(), data.manifest()])
@@ -135,7 +136,8 @@
       { k: 'Subunit slots', v: c.slots.length, max: 12 },
       { k: 'Paralog combinations', v: c.slots.reduce((a, sl) => a * sl.members.length, 1), max: 1728, log: true },
       { k: 'Slots resolved in ' + m.pdb, v: c.slots.filter((sl) => sl.members.some((x) => inModel.has(x))).length, max: c.slots.length },
-      { k: 'Subunits with mutation data', v: c.slots.flatMap((sl) => sl.members).filter((x) => DATA_GENES.includes(x)).length, max: 3 },
+      { k: 'Subunits with mutation data', v: c.slots.flatMap((sl) => sl.members).filter((x) => DATA_GENES.includes(x)).length,
+        max: c.slots.flatMap((sl) => sl.members).length },
     ];
   }
 
@@ -279,7 +281,7 @@
       <p class="absent"><span class="muted">Not in {c.id}:</span> {c.absent.join(', ')}
         <SuggestButton compact ctx={sctx(c.id, 'Subunits absent from this complex', `Not in ${c.id}: ${c.absent.join(', ')}`)} /></p>
     {/if}
-    <p class="legend"><span class="dot"></span> mutation data available (Phase 0: {DATA_GENES.join(', ')})</p>
+    <p class="legend"><span class="dot"></span> mutation data available</p>
   </section>
 {/snippet}
 
@@ -318,8 +320,8 @@
     {/if}
 
     {#if !DATA_GENES.includes(s.symbol)}
-      <p class="empty">Mutation data for {s.symbol} arrives in Phase 1.
-        <SuggestButton label="Suggest data to include" ctx={sctx(s.symbol, 'Mutation and disease data', 'Not yet available (Phase 1)')} /></p>
+      <p class="empty">No mutation data for {s.symbol} yet.
+        <SuggestButton label="Suggest data to include" ctx={sctx(s.symbol, 'Mutation and disease data', 'No mutation data shown yet')} /></p>
     {:else if !gene}
       <p class="empty">Loading {s.symbol} variants…</p>
     {:else}

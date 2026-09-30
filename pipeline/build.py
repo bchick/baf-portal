@@ -1,4 +1,5 @@
-"""Phase 0 build: fetch -> project -> validate -> emit site/public/data/v<date>/.
+"""Data build: fetch -> project -> validate -> emit site/public/data/v<date>/ for every
+curated subunit (BAF_GENES=A,B limits the run).
 
     pixi run build-data            # uses data/cache/ where present
     BAF_REFRESH=1 pixi run build-data   # ignore the cache
@@ -151,15 +152,25 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list, lit_recs: l
         try:
             pc.assert_ref(entry["sequence"], f["start"], f.get("ref", ""))
         except pc.RefMismatch as e:
-            report_rows.append([gene, "uniprot", f.get("id", ""), "", "ref_mismatch", str(e)])
-            stats["uniprot:ref_mismatch"] += 1
-            continue
+            # Numbered on another isoform? Remap only if exactly one described
+            # isoform carries the stated residue there and it aligns onto the
+            # same residue in the canonical sequence; otherwise it stays a
+            # build failure (a genuine inconsistency to look at).
+            status, f2 = uniprot_isoform_remap(acc, entry["sequence"], f)
+            report_rows.append([gene, "uniprot", f.get("id", ""), "", status,
+                                str(e) if f2 is None else f"remapped {f2['remapped_from']} -> canonical {f2['start']}"])
+            stats[f"uniprot:{status}"] += 1
+            if f2 is None:
+                continue
+            f = f2
         matches = [v for v in variants.values() if v["pos"] == f["start"] and v["ref"] == f.get("ref")
                    and v["alt"] == f.get("alt")]
         if f.get("rs"):
             rs_match = [v for v in matches if v.get("rs") == f["rs"].replace("rs", "")]
             matches = rs_match or matches
         up = {"id": f.get("id"), "desc": f["desc"], "rs": f.get("rs")}
+        if f.get("remapped_from"):
+            up["remapped_from"] = f["remapped_from"]
         cits = [{"t": 1, "pmid": p, "src": "UniProt", "eco": "ECO:0000269"} for p in cur]
         if matches:
             stats["uniprot:matched"] += 1
@@ -285,6 +296,33 @@ per-source licences.
 """
 
 
+def uniprot_isoform_remap(acc: str, canonical: str, f: dict) -> tuple[str, dict | None]:
+    """-> (status, remapped feature or None). Non-fatal statuses:
+    uniprot_isoform_remapped, uniprot_isoform_only, uniprot_isoform_ambiguous."""
+    ref, start, end = f.get("ref", ""), f["start"], f["end"]
+    hits = []
+    for iid, seq in uniprot.isoform_sequences(acc).items():
+        try:
+            pc.assert_ref(seq, start, ref)
+            hits.append((iid, seq))
+        except pc.RefMismatch:
+            pass
+    if not hits:
+        return "ref_mismatch", None
+    if len(hits) > 1:
+        return "uniprot_isoform_ambiguous", None
+    iid, seq = hits[0]
+    aln = pc.Alignment(seq, canonical)
+    p, q = aln(start), aln(end)
+    if p is None or q is None or q - p != end - start:
+        return "uniprot_isoform_only", None
+    try:
+        pc.assert_ref(canonical, p, ref)
+    except pc.RefMismatch:
+        return "uniprot_isoform_only", None
+    return "uniprot_isoform_remapped", {**f, "start": p, "end": q, "remapped_from": f"{iid}:{start}"}
+
+
 def complexes_json(comp: dict) -> dict:
     # YAML parses an unquoted `version: 2026-09-29` as datetime.date.
     return {"version": str(comp["version"]),"complexes": comp["complexes"], "mouse_only": comp["mouse_only"],
@@ -334,6 +372,7 @@ def main() -> int:
     (SITE_DATA / "odbl" / "LICENSE.md").write_text(ODBL_NOTICE)
     manifest = {
         "data_version": version, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
+        "partial": bool(os.environ.get("BAF_GENES")),
         "genes": genes_meta,
         "sources": {
             "uniprot": {**uniprot.release(), "license": "CC BY 4.0"},

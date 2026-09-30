@@ -12,7 +12,18 @@ from .common import fetch
 
 API = "https://www.cbioportal.org/api"
 SUFFIX = "_tcga_pan_can_atlas_2018"
-ENTREZ = {"SMARCA4": 6597, "SMARCB1": 6598, "ARID1B": 57492}
+
+
+def entrez_id(gene: str) -> int:
+    """Entrez Gene ID from cBioPortal (the source of the mutation calls),
+    cross-checked against HGNC so a symbol clash can never pull another gene."""
+    g = fetch(f"{API}/genes/{gene}", cache_dir="cbioportal")
+    if g.get("hugoGeneSymbol") != gene:
+        raise ValueError(f"cBioPortal resolves {gene} to {g.get('hugoGeneSymbol')}")
+    h = fetch(f"https://rest.genenames.org/fetch/symbol/{gene}", cache_dir="hgnc")["response"]["docs"]
+    if not h or str(h[0].get("entrez_id")) != str(g["entrezGeneId"]):
+        raise ValueError(f"{gene}: cBioPortal Entrez {g['entrezGeneId']} != HGNC {h[0].get('entrez_id') if h else None}")
+    return int(g["entrezGeneId"])
 
 
 def release() -> dict:
@@ -66,7 +77,7 @@ def maf_key(m: dict) -> str:
 
 
 def fetch_gene(gene: str) -> dict:
-    entrez = ENTREZ[gene]
+    entrez = entrez_id(gene)
     per_study = {}
     all_muts = []
     for s in studies():

@@ -10,7 +10,9 @@ from .conftest import cached_or_skip
 
 SEQ = "MSTPDPPLGG"
 # non-periodic, so the alignment has exactly one correct answer
-UNI = "".join(random.Random(7).choice("ACDEFGHIKLMNPQRSTVY") for _ in range(60))
+_rng = random.Random(7)
+UNI = "".join(_rng.choice("ACDEFGHIKLMNPQRSTVY") for _ in range(60))
+assert len(set(UNI)) > 10 and "W" not in UNI     # really non-periodic; W marks inserted residues
 
 
 # ---- reference-residue assert ------------------------------------------------
@@ -155,3 +157,36 @@ def test_vep_ref_disagreeing_with_mane_translation_is_caught(offline):
     proj, _ = _projector("SMARCA4")
     res = proj.project(_vep(proj, 1192, "W/H"))          # residue 1192 is R, not W
     assert res["status"] == "mane_ref_mismatch"
+
+
+# ---- UniProt variants numbered on a non-canonical isoform (e.g. DPF3 VAR_082912) --------
+
+def _remap(monkeypatch, canonical, isoforms, f):
+    from pipeline import build, fetch_uniprot
+    monkeypatch.setattr(fetch_uniprot, "isoform_sequences", lambda acc: isoforms)
+    return build.uniprot_isoform_remap("P0", canonical, f)
+
+
+def test_isoform_numbered_variant_is_remapped_onto_canonical(monkeypatch):
+    canonical = UNI
+    iso = UNI[:20] + UNI[35:]                      # isoform lacking canonical 21-35
+    # isoform position p == canonical p + 15; pick one where the stated residue
+    # really disagrees with canonical at p (so the plain check fails)
+    pos = next(p for p in range(21, 41) if canonical[p - 1] != iso[p - 1])
+    f = {"start": pos, "end": pos, "ref": iso[pos - 1], "alt": "W"}
+    status, g = _remap(monkeypatch, canonical, {"P0-2": iso}, f)
+    assert status == "uniprot_isoform_remapped" and g["start"] == pos + 15
+    assert g["remapped_from"] == f"P0-2:{pos}" and canonical[g["start"] - 1] == f["ref"]
+
+
+def test_isoform_only_residue_is_excluded_not_forced(monkeypatch):
+    iso = UNI[:40] + "WWWWWWWWWW"                  # isoform-specific C-terminus
+    f = {"start": 45, "end": 45, "ref": "W", "alt": "A"}
+    assert _remap(monkeypatch, UNI, {"P0-2": iso}, f) == ("uniprot_isoform_only", None)
+
+
+def test_ambiguous_or_unexplained_mismatch(monkeypatch):
+    f = {"start": 45, "end": 45, "ref": "W", "alt": "A"}
+    two = {"P0-2": UNI[:44] + "W" + UNI[45:], "P0-3": UNI[:44] + "W" + UNI[45:50]}
+    assert _remap(monkeypatch, UNI, two, f)[0] == "uniprot_isoform_ambiguous"
+    assert _remap(monkeypatch, UNI, {"P0-2": UNI}, f) == ("ref_mismatch", None)   # still a build failure

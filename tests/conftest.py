@@ -52,6 +52,7 @@ def built():
         def refs(self, g=None): return json.loads((root / (f"{g}.refs.json" if g else "refs.json")).read_text())
         def tcga(self, g): return json.loads((odbl / f"{g}.tcga.json").read_text())
         def manifest(self): return json.loads((root / "manifest.json").read_text())
+        def genes(self): return list(self.manifest()["genes"])
         path = root
 
     return Built()

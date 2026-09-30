@@ -21,5 +21,3 @@ export async function gene(sym) { const l = await latest(); return json(l.path +
 export async function geneRefs(sym) { const l = await latest(); return json(l.path + sym + '.refs.json'); }
 export async function tcga(sym) { const l = await latest(); return json(l.odbl + sym + '.tcga.json'); }
 
-// Genes with Phase 0 mutation data.
-export const DATA_GENES = ['SMARCA4', 'SMARCB1', 'ARID1B'];

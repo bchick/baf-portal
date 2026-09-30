@@ -72,3 +72,23 @@ def curated_pmids(feature: dict) -> list[str]:
     """PMIDs supporting a feature with experimental evidence (ECO:0000269)."""
     return [e["id"] for e in feature.get("ev", [])
             if e.get("eco") == "ECO:0000269" and e.get("src") == "PubMed"]
+
+
+def isoform_sequences(acc: str) -> dict[str, str]:
+    """Non-canonical isoform ID -> sequence (UniProt 'Described' isoforms).
+
+    Some UniProt natural-variant features are numbered on a non-canonical
+    isoform (e.g. DPF3 VAR_082912 on Q92784-2); build.py uses these to remap
+    them onto the canonical sequence instead of dropping or trusting them.
+    """
+    d = fetch(f"https://rest.uniprot.org/uniprotkb/{acc}", cache_dir="uniprot",
+              params={"format": "json", "fields": "cc_alternative_products"})
+    out = {}
+    for c in d.get("comments", []):
+        for iso in c.get("isoforms", []):
+            if iso.get("isoformSequenceStatus") != "Described":
+                continue
+            for iid in iso.get("isoformIds", []):
+                fasta = fetch(f"https://rest.uniprot.org/uniprotkb/{iid}.fasta", as_json=False, cache_dir="uniprot")
+                out[iid] = "".join(l.strip() for l in fasta.splitlines() if not l.startswith(">"))
+    return out

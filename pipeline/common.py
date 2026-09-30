@@ -15,8 +15,23 @@ CACHE = ROOT / "data" / "cache"
 CURATED = ROOT / "data" / "curated"
 SITE_DATA = ROOT / "site" / "public" / "data"
 
-# Phase 0 genes: UniProt canonical accession per HGNC symbol.
-GENES = {"SMARCA4": "P51532", "SMARCB1": "Q12824", "ARID1B": "Q8NFD5"}
+def _curated_genes() -> dict[str, str]:
+    """HGNC symbol -> UniProt canonical accession for every curated subunit
+    (data/curated/composition.yaml is the single source of truth).
+    BAF_GENES=SMARCA4,PBRM1 restricts a build to those genes."""
+    import yaml
+    subs = yaml.safe_load(open(CURATED / "composition.yaml"))["subunits"]
+    genes = {s["symbol"]: s["uniprot"] for s in subs}
+    only = [g.strip() for g in os.environ.get("BAF_GENES", "").split(",") if g.strip()]
+    if only:
+        unknown = set(only) - set(genes)
+        if unknown:
+            raise SystemExit(f"BAF_GENES: not curated subunits: {sorted(unknown)}")
+        genes = {g: genes[g] for g in only}
+    return genes
+
+
+GENES = _curated_genes()
 
 BROWSER_UA = (
     "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
