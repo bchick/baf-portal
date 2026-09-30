@@ -1,0 +1,309 @@
+# BAF-portal curated composition of human mSWI/SNF (BAF) complexes.
+#
+# Every membership claim carries at least one PMID. PMIDs were resolved with
+# NCBI ESummary on 2026-09-29 (title/first author checked; see `references`).
+# `pipeline/verify_composition.py` re-checks every PMID and every UniProt/HGNC
+# identifier in this file against the live APIs.
+#
+# Conventions
+#   slot.members      paralogs that fill the slot, mutually exclusive in one
+#                     complex unless `stoichiometry` says otherwise
+#   slot.contested    true when the literature disagrees about the slot or one
+#                     of its members; `contested_notes` lists the sources.
+#   needs_review      a claim the curator (BC) has not yet checked against the
+#                     paper's primary figure. Phase 0 review gate.
+#   species           all complexes in `complexes` are characterised in human
+#                     cells. `mouse_only` complexes are shown in a separate tab.
+
+version: 2026-09-29
+curator: Brent Chick
+
+references:
+  "8895581":  Wang 1996 EMBO J — purification of mammalian SWI/SNF (BAF) complexes
+  "11073988": Nie 2000 Mol Cell Biol — BAF250 (ARID1A) specificity subunit
+  "11078522": Xue 2000 PNAS — human SWI/SNF-B (PBAF) related to yeast RSC; BAF180
+  "15985610": Yan 2005 Genes Dev — BAF200 (ARID2) PBAF specificity subunit
+  "18809673": Kaeser 2008 J Biol Chem — BRD7 is a PBAF-specific subunit
+  "22442726": Middeljans 2012 PLoS One — SS18 defines human BAF-type complexes
+  "23540691": Kadoch & Crabtree 2013 Cell — SS18-SSX disrupts BAF
+  "23644491": Kadoch 2013 Nat Genet — proteomics of mSWI/SNF; BCL7A/B/C, BCL11
+  "29374058": Alpsoy & Dykhuizen 2018 J Biol Chem — GLTSCR1/GLTSCR1L (BICRA/BICRAL) subcomplexes
+  "30343899": Mashtalir 2018 Cell — modular organisation and assembly of cBAF, PBAF, ncBAF
+  "30397315": Michel 2018 Nat Cell Biol — ncBAF (BRD9/GLTSCR1) synthetic lethality
+  "30510198": Gatchalian 2018 Nat Commun — BRD9-containing GBAF in mouse ES cells
+  "32001526": He 2020 Science — cryo-EM of nucleosome-bound human cBAF (PDB 6LTJ)
+  "33053319": Mashtalir 2020 Cell — structural model of endogenous human BAF
+  "35477757": Yuan 2022 Nature — cryo-EM of nucleosome-bound human PBAF
+  "36496390": Wang 2022 Nat Commun — cryo-EM of nucleosome-bound human PBAF
+  "42377898": Xu 2026 J Mol Cell Biol — ncBAF assembly and nucleosome recognition (candidate for 9WBZ; needs_review)
+  "17640523": Lessard 2007 Neuron — npBAF to nBAF switch (mouse)
+  "19279220": Ho 2009 PNAS — esBAF (mouse ES cells)
+  "19561591": Yoo 2009 Nature — miRNA-mediated npBAF/nBAF switch (mouse/human neurons)
+
+complexes:
+
+  cBAF:
+    name: canonical BAF
+    synonyms: [BAF, cBAF]
+    species: human
+    structures:
+      - {pdb: 6LTJ, method: cryo-EM, pmid: "32001526", note: nucleosome-bound; used for the cartoon layout}
+    defining_pmids: ["8895581", "30343899"]
+    slots:
+      - slot: ATPase
+        members: [SMARCA4, SMARCA2]
+        pmids: ["8895581", "30343899"]
+      - slot: ARID
+        members: [ARID1A, ARID1B]
+        pmids: ["11073988", "30343899"]
+      - slot: SMARCC scaffold
+        members: [SMARCC1, SMARCC2]
+        stoichiometry: dimer; homo- or heterodimer of SMARCC1/SMARCC2
+        pmids: ["8895581", "30343899"]
+      - slot: SMARCD
+        members: [SMARCD1, SMARCD2, SMARCD3]
+        pmids: ["30343899"]
+      - slot: SMARCE1
+        members: [SMARCE1]
+        pmids: ["8895581", "30343899"]
+      - slot: SMARCB1
+        members: [SMARCB1]
+        pmids: ["8895581", "30343899"]
+      - slot: DPF
+        members: [DPF1, DPF2, DPF3]
+        pmids: ["30343899"]
+      - slot: SS18
+        members: [SS18, SS18L1]
+        pmids: ["22442726", "23540691", "30343899"]
+      - slot: ARP module (actin-related)
+        members: [ACTL6A, ACTL6B]
+        pmids: ["8895581", "30343899"]
+      - slot: ARP module (actin)
+        members: [ACTB]
+        pmids: ["8895581", "30343899"]
+      - slot: BCL7
+        members: [BCL7A, BCL7B, BCL7C]
+        pmids: ["23644491", "30343899"]
+    absent: [ARID2, PBRM1, BRD7, PHF10, BICRA, BICRAL, BRD9]
+
+  PBAF:
+    name: polybromo-associated BAF
+    synonyms: [PBAF, SWI/SNF-B]
+    species: human
+    structures:
+      - {pdb: 7VDV, method: cryo-EM, pmid: "35477757", note: "nucleosome-bound; PDB-to-paper pairing needs_review"}
+      - {pdb: 7Y8R, method: cryo-EM, pmid: "36496390", note: "nucleosome-bound; PDB-to-paper pairing needs_review"}
+    defining_pmids: ["11078522", "30343899"]
+    slots:
+      - slot: ATPase
+        members: [SMARCA4, SMARCA2]
+        pmids: ["11078522", "30343899"]
+        contested: true
+        contested_notes:
+          - member: SMARCA2
+            claim: "Xue 2000 purified PBAF (SWI/SNF-B) with BRG1 and reported BRM absent; later IP-MS work reports SMARCA2-containing PBAF at lower abundance."
+            pmids: ["11078522", "30343899"]
+            needs_review: true
+      - slot: ARID
+        members: [ARID2]
+        pmids: ["15985610", "30343899"]
+      - slot: PBRM1
+        members: [PBRM1]
+        pmids: ["11078522", "30343899"]
+      - slot: BRD7
+        members: [BRD7]
+        pmids: ["18809673", "30343899"]
+      - slot: PHF10
+        members: [PHF10]
+        pmids: ["30343899"]
+      - slot: SMARCB1
+        members: [SMARCB1]
+        pmids: ["11078522", "30343899"]
+      - slot: SMARCE1
+        members: [SMARCE1]
+        pmids: ["30343899"]
+      - slot: SMARCC scaffold
+        members: [SMARCC1, SMARCC2]
+        pmids: ["30343899"]
+      - slot: SMARCD
+        members: [SMARCD1, SMARCD2, SMARCD3]
+        pmids: ["30343899"]
+      - slot: ARP module (actin-related)
+        members: [ACTL6A, ACTL6B]
+        pmids: ["30343899"]
+      - slot: ARP module (actin)
+        members: [ACTB]
+        pmids: ["30343899"]
+      - slot: BCL7
+        members: [BCL7A, BCL7B, BCL7C]
+        pmids: ["23644491", "30343899"]
+        contested: true
+        contested_notes:
+          - claim: "Proteomic studies detect BCL7 proteins in PBAF purifications; BCL7 is not modelled in the nucleosome-bound PBAF cryo-EM structures."
+            pmids: ["23644491", "30343899", "35477757", "36496390"]
+            needs_review: true
+    absent: [ARID1A, ARID1B, DPF1, DPF2, DPF3, SS18, SS18L1, BICRA, BICRAL, BRD9]
+
+  ncBAF:
+    name: non-canonical BAF
+    synonyms: [ncBAF, GBAF]
+    species: human
+    structures:
+      - {pdb: 9WBZ, method: cryo-EM, pmid: "42377898", note: "base module only partly resolved; drawn schematically. PDB-to-paper pairing needs_review"}
+    defining_pmids: ["29374058", "30343899", "30397315"]
+    slots:
+      - slot: ATPase
+        members: [SMARCA4, SMARCA2]
+        pmids: ["29374058", "30343899", "30397315"]
+      - slot: BICRA
+        members: [BICRA, BICRAL]
+        pmids: ["29374058", "30343899"]
+      - slot: BRD9
+        members: [BRD9]
+        pmids: ["30343899", "30397315"]
+      - slot: SMARCC scaffold
+        members: [SMARCC1, SMARCC2]
+        pmids: ["29374058", "30343899"]
+        contested: true
+        contested_notes:
+          - member: SMARCC2
+            claim: "ncBAF is described as SMARCC1-containing; whether SMARCC2 is incorporated differs between purifications."
+            pmids: ["29374058", "30343899"]
+            needs_review: true
+      - slot: SMARCD
+        members: [SMARCD1, SMARCD2, SMARCD3]
+        pmids: ["30343899"]
+        contested: true
+        contested_notes:
+          - member: [SMARCD2, SMARCD3]
+            claim: "SMARCD1 is the predominant SMARCD paralog reported in ncBAF; SMARCD2/SMARCD3 incorporation is less consistently observed."
+            pmids: ["30343899", "30397315"]
+            needs_review: true
+      - slot: SS18
+        members: [SS18, SS18L1]
+        pmids: ["30343899", "30397315"]
+      - slot: ARP module (actin-related)
+        members: [ACTL6A, ACTL6B]
+        pmids: ["30343899"]
+      - slot: ARP module (actin)
+        members: [ACTB]
+        pmids: ["30343899"]
+      - slot: BCL7
+        members: [BCL7A, BCL7B, BCL7C]
+        pmids: ["30343899"]
+    absent: [SMARCB1, SMARCE1, ARID1A, ARID1B, ARID2, DPF1, DPF2, DPF3, PBRM1, BRD7, PHF10]
+
+# Biochemically defined only in mouse. Displayed in a separate tab labelled
+# "characterized in mouse; inferred in human". Do not present as human data.
+mouse_only:
+  flag: characterized in mouse; inferred in human
+  complexes:
+    esBAF:
+      name: embryonic stem cell BAF
+      species: mouse
+      pmids: ["19279220"]
+      defining_features: "SMARCA4 (not SMARCA2); SMARCC1 homodimer (no SMARCC2); ACTL6A; SMARCD1"
+      needs_review: true
+    npBAF:
+      name: neural progenitor BAF
+      species: mouse
+      pmids: ["17640523", "19561591"]
+      defining_features: "ACTL6A (BAF53a) and PHF10 (BAF45a)/DPF paralogs in progenitors; SS18"
+      needs_review: true
+    nBAF:
+      name: neuronal BAF
+      species: mouse
+      pmids: ["17640523", "19561591"]
+      defining_features: "ACTL6B (BAF53b), DPF1/DPF3 (BAF45b/c) and SS18L1 (CREST) replace progenitor paralogs after mitotic exit"
+      needs_review: true
+
+# Subunit identifiers. HGNC fields from rest.genenames.org and UniProt accession
+# (reviewed, human, gene_exact) from rest.uniprot.org, both queried 2026-09-29.
+subunits:
+  - {symbol: SMARCA4, hgnc_id: "HGNC:11100", uniprot: P51532, uniprot_length: 1647, common_name: "BRG1",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit ATPase 4",
+     aliases: [hSNF2b, BRG1, BAF190, SNF2, SWI2, SNF2-BETA, SNF2LB, FLJ39786], previous_symbols: [SNF2L4]}
+  - {symbol: SMARCA2, hgnc_id: "HGNC:11098", uniprot: P51531, uniprot_length: 1590, common_name: "BRM",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit ATPase 2",
+     aliases: [BAF190, hSNF2a, hBRM, Sth1p, SNF2LA, BRM, SNF2, SWI2], previous_symbols: [SNF2L2]}
+  - {symbol: ARID1A, hgnc_id: "HGNC:11110", uniprot: O14497, uniprot_length: 2285, common_name: "BAF250A",
+     name: "AT-rich interaction domain 1A",
+     aliases: [B120, P270, C10rf4, BAF250, BAF250a], previous_symbols: [C1orf4, SMARCF1]}
+  - {symbol: ARID1B, hgnc_id: "HGNC:18040", uniprot: Q8NFD5, uniprot_length: 2319, common_name: "BAF250B",
+     name: "AT-rich interaction domain 1B",
+     aliases: [KIAA1235, ELD/OSA1, p250R, BAF250b, DAN15, 6A3-5, SMARCF2], previous_symbols: []}
+  - {symbol: ARID2, hgnc_id: "HGNC:18037", uniprot: Q68CP9, uniprot_length: 1835, common_name: "BAF200",
+     name: "AT-rich interaction domain 2",
+     aliases: [KIAA1557, DKFZp686G052, FLJ30619, BAF200, SMARCF3, ZIPZAP, p200], previous_symbols: []}
+  - {symbol: SMARCC1, hgnc_id: "HGNC:11104", uniprot: Q92922, uniprot_length: 1105, common_name: "BAF155",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit C1",
+     aliases: [BAF155, SRG3, Rsc8, CRACC1], previous_symbols: []}
+  - {symbol: SMARCC2, hgnc_id: "HGNC:11105", uniprot: Q8TAQ2, uniprot_length: 1214, common_name: "BAF170",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit C2",
+     aliases: [BAF170, Rsc8, CRACC2], previous_symbols: []}
+  - {symbol: SMARCD1, hgnc_id: "HGNC:11106", uniprot: Q96GM5, uniprot_length: 515, common_name: "BAF60A",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit D1",
+     aliases: [BAF60A, Rsc6p, CRACD1], previous_symbols: []}
+  - {symbol: SMARCD2, hgnc_id: "HGNC:11107", uniprot: Q92925, uniprot_length: 531, common_name: "BAF60B",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit D2",
+     aliases: [BAF60B, Rsc6p, CRACD2, PRO2451], previous_symbols: []}
+  - {symbol: SMARCD3, hgnc_id: "HGNC:11108", uniprot: Q6STE5, uniprot_length: 483, common_name: "BAF60C",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit D3",
+     aliases: [BAF60C, Rsc6p, CRACD3], previous_symbols: []}
+  - {symbol: SMARCE1, hgnc_id: "HGNC:11109", uniprot: Q969G3, uniprot_length: 411, common_name: "BAF57",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit E1",
+     aliases: [BAF57], previous_symbols: []}
+  - {symbol: SMARCB1, hgnc_id: "HGNC:11103", uniprot: Q12824, uniprot_length: 385, common_name: "BAF47/INI1/SNF5",
+     name: "SWI/SNF related BAF chromatin remodeling complex subunit B1",
+     aliases: [BAF47, Ini1, INI-1, Snr1, hSNFS, Sfh1p, RDT, PPP1R144, SNF5], previous_symbols: [SNF5L1]}
+  - {symbol: DPF1, hgnc_id: "HGNC:20225", uniprot: Q92782, uniprot_length: 387, common_name: "BAF45B",
+     name: "double PHD fingers 1",
+     aliases: [neuro-d4, NEUD4, BAF45b, SMARCG1], previous_symbols: []}
+  - {symbol: DPF2, hgnc_id: "HGNC:9964", uniprot: Q92785, uniprot_length: 391, common_name: "BAF45D",
+     name: "double PHD fingers 2",
+     aliases: [ubi-d4, BAF45d, SMARCG2], previous_symbols: [REQ]}
+  - {symbol: DPF3, hgnc_id: "HGNC:17427", uniprot: Q92784, uniprot_length: 378, common_name: "BAF45C",
+     name: "double PHD fingers 3",
+     aliases: [cer-d4, Cerd4, FLJ14079, BAF45c, SMARCG3], previous_symbols: []}
+  - {symbol: SS18, hgnc_id: "HGNC:11340", uniprot: Q15532, uniprot_length: 418, common_name: "SYT",
+     name: "SS18 subunit of BAF chromatin remodeling complex",
+     aliases: [SYT, SMARCL1], previous_symbols: [SSXT]}
+  - {symbol: SS18L1, hgnc_id: "HGNC:15592", uniprot: O75177, uniprot_length: 396, common_name: "CREST",
+     name: "SS18L1 subunit of BAF chromatin remodeling complex",
+     aliases: [KIAA0693, CREST, SMARCL2], previous_symbols: []}
+  - {symbol: ACTL6A, hgnc_id: "HGNC:24124", uniprot: O96019, uniprot_length: 429, common_name: "BAF53A",
+     name: "actin like 6A",
+     aliases: [Actl6, BAF53A, Arp4, Baf53a, INO80K, SMARCN1], previous_symbols: []}
+  - {symbol: ACTL6B, hgnc_id: "HGNC:160", uniprot: O94805, uniprot_length: 426, common_name: "BAF53B",
+     name: "actin like 6B",
+     aliases: [BAF53B, SMARCN2], previous_symbols: [ACTL6]}
+  - {symbol: ACTB, hgnc_id: "HGNC:132", uniprot: P60709, uniprot_length: 375, common_name: "beta-actin",
+     name: "actin beta",
+     aliases: [], previous_symbols: []}
+  - {symbol: BCL7A, hgnc_id: "HGNC:1004", uniprot: Q4VC05, uniprot_length: 210, common_name: "BCL7A",
+     name: "BAF chromatin remodeling complex subunit BCL7A",
+     aliases: [SMARCJ1], previous_symbols: [BCL7]}
+  - {symbol: BCL7B, hgnc_id: "HGNC:1005", uniprot: Q9BQE9, uniprot_length: 202, common_name: "BCL7B",
+     name: "BAF chromatin remodeling complex subunit BCL7B",
+     aliases: [SMARCJ2], previous_symbols: []}
+  - {symbol: BCL7C, hgnc_id: "HGNC:1006", uniprot: Q8WUZ0, uniprot_length: 217, common_name: "BCL7C",
+     name: "BAF chromatin remodeling complex subunit BCL7C",
+     aliases: [SMARCJ3], previous_symbols: []}
+  - {symbol: PBRM1, hgnc_id: "HGNC:30064", uniprot: Q86U86, uniprot_length: 1689, common_name: "BAF180",
+     name: "polybromo 1",
+     aliases: [BAF180, PB1, SMARCH1], previous_symbols: []}
+  - {symbol: BRD7, hgnc_id: "HGNC:14310", uniprot: Q9NPI1, uniprot_length: 651, common_name: "BP75",
+     name: "bromodomain containing 7",
+     aliases: [CELTIX1, BP75, SMARCI1], previous_symbols: []}
+  - {symbol: PHF10, hgnc_id: "HGNC:18250", uniprot: Q8WUB8, uniprot_length: 498, common_name: "BAF45A",
+     name: "PHD finger protein 10",
+     aliases: [FLJ10975, XAP135, BAF45a, SMARCG4], previous_symbols: []}
+  - {symbol: BICRA, hgnc_id: "HGNC:4332", uniprot: Q9NZM4, uniprot_length: 1560, common_name: "GLTSCR1",
+     name: "BRD4 interacting chromatin remodeling complex associated protein",
+     aliases: [SMARCK1], previous_symbols: [GLTSCR1]}
+  - {symbol: BICRAL, hgnc_id: "HGNC:21111", uniprot: Q6AI39, uniprot_length: 1079, common_name: "GLTSCR1L",
+     name: "BICRA like chromatin remodeling complex associated protein",
+     aliases: [SMARCK2], previous_symbols: [KIAA0240, GLTSCR1L]}
+  - {symbol: BRD9, hgnc_id: "HGNC:25818", uniprot: Q9H8M2, uniprot_length: 597, common_name: "BRD9",
+     name: "bromodomain containing 9",
+     aliases: [FLJ13441, SMARCI2], previous_symbols: []}

@@ -1,0 +1,9 @@
+data/cache/
+.pixi/
+__pycache__/
+*.pyc
+.pytest_cache/
+site/node_modules/
+site/dist/
+build/
+reports/*.tmp

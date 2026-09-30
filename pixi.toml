@@ -1,0 +1,28 @@
+# BAF-portal data pipeline environment.
+#
+#   pixi install
+#   pixi run build-data     # fetch -> project -> validate -> emit site/public/data/v<date>/
+#   pixi run layout         # 6LTJ -> site/src/lib/layouts/cBAF.json
+#   pixi run test           # pytest (network-free where cached)
+
+[workspace]
+name = "baf-portal"
+version = "0.1.0"
+description = "Static portal of human BAF (mSWI/SNF) complexes, subunit domain maps and disease mutations"
+authors = ["Brent Chick"]
+channels = ["conda-forge"]
+platforms = ["linux-64", "osx-64", "osx-arm64"]
+
+[dependencies]
+python = "3.12.*"
+requests = "*"
+pyyaml = "*"
+numpy = "*"
+scipy = "*"
+gemmi = "*"
+pytest = "*"
+
+[tasks]
+build-data = "python -m pipeline.build"
+layout = "python -m pipeline.cartoon_layout"
+test = "pytest -q tests"
