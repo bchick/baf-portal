@@ -234,7 +234,8 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list) -> tuple[di
 
 
 def complexes_json(comp: dict) -> dict:
-    return {"version": comp["version"], "complexes": comp["complexes"], "mouse_only": comp["mouse_only"],
+    # YAML parses an unquoted `version: 2026-09-29` as datetime.date.
+    return {"version": str(comp["version"]),"complexes": comp["complexes"], "mouse_only": comp["mouse_only"],
             "subunits": {s["symbol"]: s for s in comp["subunits"]}, "references": comp["references"]}
 
 
