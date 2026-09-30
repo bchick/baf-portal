@@ -44,6 +44,16 @@ def _throttle(host: str) -> None:
     _last_call[host] = time.monotonic()
 
 
+def refreshing(cache_dir: str) -> bool:
+    """BAF_REFRESH=1 (or 'all') ignores every cache; a comma list such as
+    'clinvar,cbioportal' refreshes only those cache directories (the weekly CI
+    build refreshes sources that change and keeps deterministic VEP results)."""
+    v = os.environ.get("BAF_REFRESH", "").strip()
+    if v in ("", "0"):
+        return False
+    return v in ("1", "all") or cache_dir in {x.strip() for x in v.split(",")}
+
+
 def _key(method: str, url: str, params, body) -> str:
     blob = json.dumps([method, url, params, body], sort_keys=True, default=str)
     return hashlib.sha1(blob.encode()).hexdigest()
@@ -55,7 +65,7 @@ def fetch(url: str, *, params=None, json_body=None, data=None, method="GET",
     """HTTP with on-disk gzip cache in data/cache/<cache_dir>/ and per-host throttling."""
     body = json_body if json_body is not None else data
     path = CACHE / cache_dir / (_key(method, url, params, body) + (".json.gz" if as_json else ".txt.gz"))
-    if path.exists() and not refresh and not os.environ.get("BAF_REFRESH"):
+    if path.exists() and not refresh and not refreshing(cache_dir):
         with gzip.open(path, "rt") as fh:
             txt = fh.read()
         return json.loads(txt) if as_json else txt

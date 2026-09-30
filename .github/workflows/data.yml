@@ -1,0 +1,124 @@
+# Weekly data build -> verify -> smoke test -> (optional) GitHub Pages deploy.
+#
+# Refreshes the sources that change (ClinVar, cBioPortal, UniProt, InterPro,
+# CIViC, PubMed; LitVar2 re-downloads when its bulk file changes) and keeps
+# deterministic cached results (Ensembl VEP, assembly mapping, PDBe). Use
+# "full refresh" after an Ensembl release.
+#
+# The build fails on any reference-residue mismatch (pipeline/build.py), a
+# failing test, or a composition error from the live verifier, so bad data
+# never reaches the site.
+#
+# Deploying requires repository variable DEPLOY_PAGES=true and Pages set to
+# "GitHub Actions" (Settings -> Pages). Pages on a private repository needs a
+# paid plan, so this stays off until the public launch.
+name: Data build
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"          # Mondays 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      full_refresh:
+        description: "Ignore every cache (use after an Ensembl release)"
+        type: boolean
+        default: false
+      deploy:
+        description: "Deploy to GitHub Pages (needs DEPLOY_PAGES=true)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e # v0.10.2
+        with:
+          pixi-version: v0.64.0
+          locked: true
+          cache: true
+
+      - name: Restore API response cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data/cache
+          key: data-cache-${{ github.run_id }}
+          restore-keys: data-cache-
+
+      - name: Build data
+        env:
+          BAF_REFRESH: ${{ inputs.full_refresh && '1' || 'clinvar,clinvar_vcv,cbioportal,uniprot,interpro,civic,pubmed' }}
+        run: pixi run build-data
+
+      - name: Save API response cache
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data/cache
+          key: data-cache-${{ github.run_id }}
+
+      - name: Tests (incl. data contract on the fresh build)
+        run: pixi run test -rs
+
+      - name: Verify composition against live PubMed / UniProt / HGNC / RCSB
+        run: pixi run verify
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - name: Build site
+        working-directory: site
+        run: |
+          npm ci
+          npm run build
+
+      - name: Smoke test (every route loads without errors; transition film strips)
+        working-directory: site
+        run: |
+          npx playwright install --with-deps chromium
+          npx vite preview --port 4173 --strictPort &
+          for _ in $(seq 1 30); do curl -sf http://localhost:4173/ > /dev/null && break; sleep 1; done
+          npm run shots -- "$RUNNER_TEMP/screenshots"
+
+      - name: Upload data, reports and screenshots
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: data-build-${{ github.run_number }}
+          path: |
+            site/public/data/
+            reports/
+            ${{ runner.temp }}/screenshots/
+          retention-days: 30
+          if-no-files-found: warn
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/dist
+
+  deploy:
+    needs: build
+    if: vars.DEPLOY_PAGES == 'true' && (github.event_name == 'schedule' || inputs.deploy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

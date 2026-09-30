@@ -2,6 +2,7 @@
 
     pixi run build-data            # uses data/cache/ where present
     BAF_REFRESH=1 pixi run build-data   # ignore the cache
+    BAF_REFRESH=clinvar,pubmed pixi run build-data   # refresh only those cache dirs
 
 Fails (exit 1) if any variant's reference residue disagrees with UniProt
 canonical, unless BAF_ALLOW_MISMATCH=1. Mismatches and unmappable variants
@@ -265,6 +266,25 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list, lit_recs: l
     return gene_json, odbl_json, pmids, cohort
 
 
+ODBL_NOTICE = """# Licence: files under odbl/
+
+The files in this directory are derived from the cBioPortal for Cancer Genomics
+public API (TCGA PanCancer Atlas 2018 studies; https://www.cbioportal.org) and
+are made available under the Open Database License (ODbL) v1.0:
+https://opendatacommons.org/licenses/odbl/1-0/
+
+Any rights in individual contents of the database are licensed under the
+Database Contents License: https://opendatacommons.org/licenses/dbcl/1-0/
+
+Share-alike: if you publicly use an adapted version of this database, or works
+produced from it, you must also offer that adapted database under the ODbL.
+Source studies and their publications are listed in cohorts.json.
+
+Everything outside odbl/ is not covered by this notice; see manifest.json for
+per-source licences.
+"""
+
+
 def complexes_json(comp: dict) -> dict:
     # YAML parses an unquoted `version: 2026-09-29` as datetime.date.
     return {"version": str(comp["version"]),"complexes": comp["complexes"], "mouse_only": comp["mouse_only"],
@@ -310,6 +330,8 @@ def main() -> int:
         write_json(out / f"{gene}.refs.json", {p: refs[p] for p in pm if p in refs})
     write_json(out / "complexes.json", complexes_json(comp))
     write_json(odbl / "cohorts.json", cohort_all)
+    (SITE_DATA / "odbl").mkdir(parents=True, exist_ok=True)
+    (SITE_DATA / "odbl" / "LICENSE.md").write_text(ODBL_NOTICE)
     manifest = {
         "data_version": version, "built": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
         "genes": genes_meta,

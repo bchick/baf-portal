@@ -150,3 +150,18 @@ def test_civic_protein_match_and_ambiguity(stats):
     vs = [_v("a", 7, "p.Arg7Gln", mane="p.Arg60Gln"), _v("b", 2, "p.Arg2Gln", mane="p.Arg7Gln")]
     per_variant, gene_level = civic.split(c, vs, stats)
     assert per_variant == {} and len(gene_level) == 1
+
+
+# ---- selective cache refresh (weekly CI keeps deterministic VEP results) ---------------
+
+def test_refresh_is_per_cache_directory(monkeypatch):
+    from pipeline.common import refreshing
+    monkeypatch.delenv("BAF_REFRESH", raising=False)
+    assert not refreshing("clinvar")
+    monkeypatch.setenv("BAF_REFRESH", "clinvar, pubmed")
+    assert refreshing("clinvar") and refreshing("pubmed") and not refreshing("vep")
+    for everything in ("1", "all"):
+        monkeypatch.setenv("BAF_REFRESH", everything)
+        assert refreshing("vep")
+    monkeypatch.setenv("BAF_REFRESH", "0")
+    assert not refreshing("clinvar")

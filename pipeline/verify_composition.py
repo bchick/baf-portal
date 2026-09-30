@@ -13,8 +13,8 @@ Live (unless --offline), against the source APIs:
   * RCSB: structure exists and its primary-citation PMID is the one we cite
 
     pixi run verify                 # live
-    pixi run verify -- --cached     # reuse data/cache/verify/ responses
-    pixi run verify -- --offline    # internal checks only
+    pixi run verify --cached        # reuse data/cache/verify/ responses
+    pixi run verify --offline       # internal checks only
 
 Writes reports/verify_composition.json; exits 1 if any error.
 """

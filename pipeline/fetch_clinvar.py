@@ -18,7 +18,7 @@ import xml.etree.ElementTree as ET
 
 import requests
 
-from .common import BROWSER_UA, CACHE, chunks, fetch
+from .common import BROWSER_UA, CACHE, chunks, fetch, refreshing
 
 E = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
 TOOL = {"tool": "baf-portal", "email": "bchick@salk.edu"}
@@ -115,7 +115,7 @@ def var_citations(variation_ids: set[str]) -> dict[str, list[tuple[str, str]]]:
     never stored.
     """
     path = CACHE / "clinvar" / "var_citations.filtered.json.gz"
-    if path.exists():
+    if path.exists() and not refreshing("clinvar"):
         with gzip.open(path, "rt") as fh:
             cached = json.load(fh)
         if set(cached["ids"]) >= variation_ids:
