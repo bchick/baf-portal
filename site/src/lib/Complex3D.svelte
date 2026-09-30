@@ -1,12 +1,16 @@
 <script>
-  // Spinning Goodsell-style bead model of a BAF complex (one bead per modelled
-  // residue; pipeline/bead_model.py), rendered with WebGL2:
-  //   pass 1  instanced bead discs, depth-tested (no sorting), writing colour
-  //           and an exact per-chain id into two targets at once (MRT)
-  //   pass 2  full-screen: ink outline wherever the id changes -> one clean
-  //           silhouette per subunit
+  // Spinning BAF complex in the style of Goodsell & Olson's Illustrate, WebGL2:
+  //   pass 1  instanced atom spheres (every heavy atom; <name>.atoms.bin from
+  //           pipeline/bead_model.py), flat colour with carbons lighter than
+  //           N/O/S, true sphere depth. Writes colour and a per-chain id with
+  //           16-bit depth packed alongside into two targets at once (MRT).
+  //           Until a model's atoms arrive, its residue beads are drawn instead.
+  //   pass 2  full-screen: subunit outlines wherever the id changes, contour
+  //           outlines wherever depth steps back (Illustrate's z-derivative
+  //           outlines), and soft shadows from nearby atoms in front
   //   overlay 2D canvas for unmodelled "ghost" members and the swap scan line
-  // The id target doubles as a pixel-exact hover picker.
+  // Chains borrowed from another structure ("placed") or predicted are drawn
+  // paler and hatched. The id target doubles as a pixel-exact hover picker.
   //
   // Every camera quantity is a critically damped spring, so any route change
   // (select -> complex -> subunit, and back, even mid-flight) just retargets
@@ -14,6 +18,10 @@
   import { onMount } from 'svelte';
   import { colorOf } from './colors.js';
 
+  const ATOM_URLS = import.meta.glob('./models/*.atoms.bin', { query: '?url', import: 'default', eager: true });
+  const ATOM_R = [1.6, 1.5, 1.8];   // Å: carbon, other, sulfur (Illustrate's enlarged radii)
+  const TIER = { experimental: 0, placed: 1, predicted: 2 };
+  const ZSPAN = 1200;               // Å of view depth packed into the id target's 16 bits
   let {
     model, mode = 'complex', selected = null, highlight = null, complex = null,
     onpick = () => {}, onhover = () => {}, onmorphsource = () => {}, onglfail = () => {},
@@ -76,9 +84,30 @@
       res: Int32Array.from(m.res ?? []),       // UniProt residue per bead (0 = unmapped)
       hover: new Float32Array(MAXC), off: new Float32Array(MAXC * 3),
       act: new Float32Array(MAXC), vao: null,
+      tier: Float32Array.from({ length: MAXC }, (_, i) => TIER[chains[i]?.tier] ?? 0),
+      atoms: null, atomVao: null,
     };
     prepCache.set(m, p);
+    loadAtoms(p);
     return p;
+  }
+
+  // <name>.atoms.bin: uint32 n | int16 xyz[3n] (0.1 Å) | uint8 chain[n] | uint8 elem[n]
+  function loadAtoms(p) {
+    const url = ATOM_URLS[`./models/${p.src.complex}.atoms.bin`];
+    if (!url) return;
+    fetch(url).then((r) => { if (!r.ok) throw new Error(`${url}: ${r.status}`); return r.arrayBuffer(); }).then((buf) => {
+      const n = new DataView(buf).getUint32(0, true);
+      const q = new Int16Array(buf, 4, 3 * n);
+      const ch = new Uint8Array(buf, 4 + 6 * n, n), el = new Uint8Array(buf, 4 + 7 * n, n);
+      const inst = new Float32Array(5 * n);
+      for (let i = 0; i < n; i++) {
+        inst[5 * i] = q[3 * i] / 10; inst[5 * i + 1] = q[3 * i + 1] / 10; inst[5 * i + 2] = q[3 * i + 2] / 10;
+        inst[5 * i + 3] = ch[i]; inst[5 * i + 4] = el[i];
+      }
+      p.atoms = { n, inst };
+      kick();
+    }).catch((e) => console.warn('atoms unavailable, drawing residue beads', e));
   }
 
   let cur = $state.raw(null);      // prepared model on stage
@@ -203,62 +232,100 @@
   const VS = `#version 300 es
     layout(location=0) in vec2 corner;
     layout(location=1) in vec4 bead;          // xyz (Å), chain index
-    uniform mat3 rot; uniform vec3 target; uniform float scale, F, R, beadR; uniform vec2 halfPx;
+    layout(location=2) in float elem;         // 0 carbon, 1 other, 2 sulfur (beads: 0)
+    uniform mat3 rot; uniform vec3 target; uniform float scale, F, R; uniform vec3 radii; uniform vec2 halfPx;
     uniform vec3 offs[${MAXC}]; uniform float hov[${MAXC}];
-    out vec2 uv; flat out int chain; out float depth01;
+    out vec2 uv; flat out int chain; flat out float kind; out float pz, rw;
     void main() {
       int c = int(bead.w + 0.5);
+      int e = int(elem + 0.5);
       vec3 p = rot * (bead.xyz + offs[c] - target);
       float k = F / (F - p.z);
-      float r = beadR * scale * k * (1.0 + 0.12 * hov[c]);
-      vec2 s = p.xy * scale * k + corner * r;
-      gl_Position = vec4(s.x / halfPx.x, -s.y / halfPx.y, clamp(-p.z / (R * 2.5), -1.0, 1.0), 1.0);
-      uv = corner; chain = c; depth01 = clamp((p.z + R) / (2.0 * R), 0.0, 1.0);
+      rw = (e == 0 ? radii.x : e == 1 ? radii.y : radii.z) * (1.0 + 0.12 * hov[c]);
+      vec2 s = p.xy * scale * k + corner * rw * scale * k;
+      gl_Position = vec4(s.x / halfPx.x, -s.y / halfPx.y, clamp(-(p.z + rw) / (R * 2.5), -1.0, 1.0), 1.0);
+      uv = corner; chain = c; kind = float(e); pz = p.z;
     }`;
   const FS = `#version 300 es
     precision highp float;
-    in vec2 uv; flat in int chain; in float depth01;
-    uniform vec3 col[${MAXC}]; uniform float act[${MAXC}]; uniform float hov[${MAXC}];
-    uniform vec3 bg; uniform float focus, which, scanY, scanDir, H;
+    in vec2 uv; flat in int chain; flat in float kind; in float pz, rw;
+    uniform vec3 col[${MAXC}]; uniform float act[${MAXC}]; uniform float hov[${MAXC}]; uniform float tier[${MAXC}];
+    uniform vec3 bg; uniform float focus, which, scanY, scanDir, H, R, cue, PR;
     layout(location=0) out vec4 outColor;
     layout(location=1) out vec4 outId;
     void main() {
-      if (dot(uv, uv) > 1.0) discard;
+      float d2 = dot(uv, uv);
+      if (d2 > 1.0) discard;
       float y = H - gl_FragCoord.y;
       if (scanDir > 0.5 && y > scanY) discard;
       if (scanDir < -0.5 && y <= scanY) discard;
+      float z = pz + rw * sqrt(1.0 - d2);                 // sphere surface, toward the viewer
+      gl_FragDepth = 0.5 + 0.5 * clamp(-z / (R * 2.5), -1.0, 1.0);
       vec3 c = col[chain];
+      if (kind > 0.5) c *= 0.84;                          // N, O, S, P darker than carbon
+      float t = tier[chain];
+      if (t > 0.5) {                                      // borrowed or predicted: paler, hatched
+        c = mix(c, t > 1.5 ? bg : vec3(1.0), t > 1.5 ? 0.45 : 0.3);
+        if (mod(gl_FragCoord.x + gl_FragCoord.y, 7.0 * PR) < 1.6 * PR) c *= 0.86;
+      }
       c = mix(c, bg, 0.68 * focus * (1.0 - act[chain]));
       c = mix(c, vec3(1.0), 0.28 * hov[chain]);
-      c = mix(bg, c, 0.5 + 0.5 * depth01);
+      float depth01 = clamp((z + R) / (2.0 * R), 0.0, 1.0);
+      c = mix(bg, c, 1.0 - cue + cue * depth01);
       // materialising glow just behind the scan line on the incoming model
       if (scanDir > 0.5) c = mix(c, vec3(0.55, 0.95, 1.0), 0.6 * exp(-abs(scanY - y) / 18.0));
       outColor = vec4(c, 1.0);
-      outId = vec4(float(chain + 1) / 255.0, which / 255.0, 0.0, 1.0);
+      // id: chain+1, model; depth (0 near .. 1 far) packed into 16 bits
+      float dq = floor(clamp(0.5 - z / ${ZSPAN}.0, 0.0, 1.0) * 65535.0 + 0.5);
+      outId = vec4(float(chain + 1) / 255.0, which / 255.0, floor(dq / 256.0) / 255.0, mod(dq, 256.0) / 255.0);
     }`;
   const EVS = `#version 300 es
     layout(location=0) in vec2 corner;
     void main() { gl_Position = vec4(corner, 0.0, 1.0); }`;
+  // Post pass, after Illustrate's outline and shadow model (depths in Å):
+  //   subunit outline  the chain id differs from a neighbour k px away
+  //   contour outline  summed depth steps to the 8 neighbours (each capped at
+  //                    zCap) ramp from lo to hi -> grey to ink
+  //   shadow           fraction of 12 samples within sR Å that sit well in front
   const EFS = `#version 300 es
     precision highp float;
-    uniform sampler2D colTex, idTex; uniform float k; uniform vec3 ink;
+    uniform sampler2D colTex, idTex; uniform float k, pxPerA, lo, hi, zCap, sR, sMax, contour;
+    uniform vec3 ink;
     uniform float faintA[${MAXC}], faintB[${MAXC}];
     out vec4 outColor;
-    vec2 idAt(ivec2 q) { return texelFetch(idTex, q, 0).rg; }
+    const float FAR = 1e5;
+    const ivec2 NB[8] = ivec2[8](ivec2(1, 0), ivec2(-1, 0), ivec2(0, 1), ivec2(0, -1),
+                                 ivec2(1, 1), ivec2(-1, 1), ivec2(1, -1), ivec2(-1, -1));
+    vec4 at(ivec2 q) { return texelFetch(idTex, q, 0); }
+    float depthOf(vec4 id) { return id.r == 0.0 ? FAR : (id.b * 255.0 * 256.0 + id.a * 255.0) / 65535.0 * ${ZSPAN}.0; }
     void main() {
       ivec2 q = ivec2(gl_FragCoord.xy);
-      vec4 id = texelFetch(idTex, q, 0);
-      if (id.a == 0.0) { outColor = vec4(0.0); return; }
+      vec4 id = at(q);
+      if (id.r == 0.0) { outColor = vec4(0.0); return; }
       int ik = int(k);
-      vec2 v = id.rg;
-      bool edge = any(notEqual(v, idAt(q + ivec2(ik, 0)))) || any(notEqual(v, idAt(q - ivec2(ik, 0))))
-               || any(notEqual(v, idAt(q + ivec2(0, ik)))) || any(notEqual(v, idAt(q - ivec2(0, ik))));
-      vec3 c = texelFetch(colTex, q, 0).rgb;
-      if (edge) {
-        int ch = int(v.r * 255.0 + 0.5) - 1;
-        float a = int(v.g * 255.0 + 0.5) == 2 ? faintB[ch] : faintA[ch];
-        c = mix(c, ink, a);
+      float z = depthOf(id);
+      bool edge = false; float steps = 0.0;
+      for (int j = 0; j < 8; j++) {
+        vec4 n = at(q + NB[j] * ik);
+        if (j < 4) edge = edge || any(notEqual(id.rg, n.rg));
+        steps += clamp(depthOf(n) - z, 0.0, zCap);
       }
+      vec3 c = texelFetch(colTex, q, 0).rgb;
+      // soft shadow from atoms in front, on a ring of sR Å
+      float occ = 0.0;
+      float rp = sR * pxPerA;
+      for (int j = 0; j < 12; j++) {
+        float a = float(j) * 0.5236 + 0.37;
+        float rr = rp * (0.45 + 0.55 * fract(float(j) * 0.618));
+        vec4 n = at(q + ivec2(round(vec2(cos(a), sin(a)) * rr)));
+        occ += smoothstep(1.0, 6.0, z - depthOf(n));
+      }
+      c *= 1.0 - sMax * occ / 12.0;
+      int ch = int(id.r * 255.0 + 0.5) - 1;
+      float fa = int(id.g * 255.0 + 0.5) == 2 ? faintB[ch] : faintA[ch];
+      float line = contour * smoothstep(lo, hi, steps);
+      if (edge) line = 1.0;
+      c = mix(c, ink, line * fa);
       outColor = vec4(c, 1.0);
     }`;
 
@@ -316,19 +383,29 @@
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   }
 
-  function vaoFor(p) {
-    if (p.vao) return p.vao;
+  function makeVao(data, stride) {
     const vao = gl.createVertexArray();
     gl.bindVertexArray(vao);
     gl.bindBuffer(gl.ARRAY_BUFFER, quad);
     gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
     const buf = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, buf);
-    gl.bufferData(gl.ARRAY_BUFFER, p.beads, gl.STATIC_DRAW);
-    gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, 0, 0);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 4, gl.FLOAT, false, stride * 4, 0);
     gl.vertexAttribDivisor(1, 1);
+    if (stride === 5) {
+      gl.enableVertexAttribArray(2); gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 20, 16);
+      gl.vertexAttribDivisor(2, 1);
+    } else {
+      gl.disableVertexAttribArray(2); gl.vertexAttrib1f(2, 0);
+    }
     gl.bindVertexArray(null);
-    return (p.vao = vao);
+    return vao;
+  }
+  // atoms once loaded, residue beads until then
+  function geometry(p) {
+    if (p.atoms) return { vao: (p.atomVao ??= makeVao(p.atoms.inst, 5)), n: p.atoms.n, atoms: true };
+    return { vao: (p.vao ??= makeVao(p.beads, 4)), n: p.n, atoms: false };
   }
 
   // ---- camera ----------------------------------------------------------------------
@@ -374,15 +451,18 @@
     gl.uniformMatrix3fv(u.rot, false, cam.m);
     gl.uniform3fv(u.target, cam.t);
     gl.uniform1f(u.scale, cam.scale * PR); gl.uniform1f(u.F, cam.F); gl.uniform1f(u.R, p.R);
-    gl.uniform1f(u.beadR, BEAD);
+    const g = geometry(p);
+    gl.uniform3fv(u.radii, g.atoms ? ATOM_R : [BEAD, BEAD, BEAD]);
     gl.uniform2f(u.halfPx, (W * PR) / 2, (H * PR) / 2);
     gl.uniform3fv(u.offs, p.off); gl.uniform1fv(u.hov, p.hover);
-    gl.uniform3fv(u.col, baseColors(p)); gl.uniform1fv(u.act, p.act);
+    gl.uniform3fv(u.col, baseColors(p)); gl.uniform1fv(u.act, p.act); gl.uniform1fv(u.tier, p.tier);
     gl.uniform3fv(u.bg, pal.bg); gl.uniform1f(u.focus, S.focus.v);
     gl.uniform1f(u.which, which); gl.uniform1f(u.scanY, scanY * PR); gl.uniform1f(u.scanDir, scanDir);
-    gl.uniform1f(u.H, H * PR);
-    gl.bindVertexArray(vaoFor(p));
-    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, p.n);
+    gl.uniform1f(u.H, H * PR); gl.uniform1f(u.PR, PR);
+    gl.uniform1f(u.cue, g.atoms ? 0.22 : 0.5);          // depth cue: Illustrate uses (almost) none
+    gl.bindVertexArray(g.vao);
+    gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, g.n);
+    return g.atoms;
   }
 
   // ---- interaction -------------------------------------------------------------
@@ -401,7 +481,7 @@
     gl.readBuffer(gl.COLOR_ATTACHMENT1);
     gl.readPixels(ix, iy, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px1);
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, null);
-    if (!px1[3]) return null;
+    if (!px1[0]) return null;
     const p = px1[1] === 2 ? next : cur;
     const c = p?.chains[px1[0] - 1];
     return c && c.kind === 'subunit' ? c.symbol : null;
@@ -477,16 +557,16 @@
     gl.clearBufferfv(gl.DEPTH, 0, [1]);
     gl.enable(gl.DEPTH_TEST); gl.depthFunc(gl.LESS);
     gl.useProgram(prog.pr);
-    let scan = 0;
+    let scan = 0, atoms;
     if (pB) {
       const camB = camera(pB);
       const t = 1 - Math.pow(1 - swapT, 3);
       const top = H / 2 - pB.R * camB.scale * 1.05, bot = H / 2 + pB.R * camB.scale * 1.05;
       scan = top + (bot - top) * t;
       drawModel(pA, camA, 1, -1, scan);
-      drawModel(pB, camB, 2, 1, scan);
+      atoms = drawModel(pB, camB, 2, 1, scan);
     } else {
-      drawModel(pA, camA, 1, 0, 0);
+      atoms = drawModel(pA, camA, 1, 0, 0);
     }
     gl.disable(gl.DEPTH_TEST);
 
@@ -499,6 +579,11 @@
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, fb.id); gl.uniform1i(eu.idTex, 1);
     gl.uniform1f(eu.k, Math.max(1, Math.round(PR * 1.15)));
     gl.uniform3fv(eu.ink, pal.ink);
+    gl.uniform1f(eu.pxPerA, camA.scale * PR);
+    // Illustrate contour card "3.0,10.0,4,0.0,5.0": ramp lo..hi, steps capped at 5 Å
+    gl.uniform1f(eu.lo, 3.0); gl.uniform1f(eu.hi, 10.0); gl.uniform1f(eu.zCap, 5.0);
+    gl.uniform1f(eu.contour, atoms ? 1 : 0);
+    gl.uniform1f(eu.sR, 7.0); gl.uniform1f(eu.sMax, atoms ? 0.38 : 0);
     const faint = (p) => { const a = new Float32Array(MAXC); for (let i = 0; i < MAXC; i++) a[i] = 0.9 - 0.62 * S.focus.v * (1 - (p?.act[i] ?? 0)); return a; };
     gl.uniform1fv(eu.faintA, faint(pA)); gl.uniform1fv(eu.faintB, faint(pB));
     gl.bindVertexArray(edgeVao);
@@ -598,6 +683,14 @@
               class:off={mode === 'complex' && selected && !activeSet.has(sym) && hoverSym !== sym}>{sym}</span>
       {/each}
     </div>
+    {#if mode === 'complex' && cur.src.chains.some((c) => c.source)}
+      <p class="borrowed">
+        <span class="swatch-hatch" aria-hidden="true"></span>
+        Paler, hatched:
+        {#each cur.src.chains.filter((c) => c.source) as c, i (c.chain)}{i ? '; ' : ''}{c.symbol} placed from
+          {c.source.pdb} (aligned on {c.source.fit_on.join('/')}, RMSD {c.source.rmsd} Å){/each}
+      </p>
+    {/if}
     {#if mode === 'complex' && cur.ghostsFlat.length}
       <div class="unresolved">
         <span class="muted">Not resolved in {cur.src.pdb}:</span>
@@ -645,4 +738,13 @@
     justify-content: center; align-items: center; font-size: 12.5px;
   }
   .unresolved .chip { cursor: pointer; border-style: dashed; }
+  .borrowed {
+    position: absolute; left: 0; right: 0; bottom: 40px; margin: 0; text-align: center;
+    font-size: 12px; color: var(--ink-3); pointer-events: none;
+  }
+  .swatch-hatch {
+    display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -2px; margin-right: 4px;
+    background: repeating-linear-gradient(135deg, var(--ink-3) 0 1.5px, transparent 1.5px 5px);
+    border: 1px solid var(--line);
+  }
 </style>

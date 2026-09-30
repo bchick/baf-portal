@@ -14,3 +14,7 @@ site/public/data/
 # curator reading copies (publisher PDFs) and generated reports
 lit/
 reports/
+
+# curator reference figures (Illustrate renders)
+/fig1_baf_structure*.png
+/fig1_baf_structure*.pnm

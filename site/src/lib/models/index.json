@@ -6,83 +6,108 @@
   "chains": [
    {
     "symbol": "H33_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H4_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2A1_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2B11_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H33_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H4_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2A1_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2B11_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCA4",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "ACTL6A",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "ACTB",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "ARID1A",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCB1",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCC2",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCC2",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCD1",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCE1",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "DPF2",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "DNA",
-    "kind": "dna"
+    "kind": "dna",
+    "tier": "experimental"
    },
    {
     "symbol": "DNA",
-    "kind": "dna"
+    "kind": "dna",
+    "tier": "experimental"
+   },
+   {
+    "symbol": "BCL7A",
+    "kind": "subunit",
+    "tier": "placed"
    }
   ],
   "ghosts": [
@@ -97,21 +122,9 @@
      "ACTL6A",
      "SMARCA4"
     ]
-   },
-   {
-    "slot": "BCL7",
-    "members": [
-     "BCL7A",
-     "BCL7B",
-     "BCL7C"
-    ],
-    "reason": "not modelled in 6LTJ",
-    "anchor_subunits": [
-     "ACTB",
-     "ACTL6A"
-    ]
    }
-  ]
+  ],
+  "atoms": 34658
  },
  "PBAF": {
   "complex": "PBAF",
@@ -120,113 +133,132 @@
   "chains": [
    {
     "symbol": "SMARCA4",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "H4_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2A1_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2B11_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H32_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H4_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2A1_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2B11_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "DNA",
-    "kind": "dna"
+    "kind": "dna",
+    "tier": "experimental"
    },
    {
     "symbol": "DNA",
-    "kind": "dna"
+    "kind": "dna",
+    "tier": "experimental"
    },
    {
     "symbol": "H32_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "M",
-    "kind": "unassigned"
+    "kind": "unassigned",
+    "tier": "experimental"
    },
    {
     "symbol": "ACTL6A",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "ACTB",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "ARID2",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "PHF10",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "BRD7",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "U",
-    "kind": "unassigned"
+    "kind": "unassigned",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCB1",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCC2",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCC2",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCD1",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "SMARCE1",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "PBRM1",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
+   },
+   {
+    "symbol": "BCL7A",
+    "kind": "subunit",
+    "tier": "placed"
    }
   ],
-  "ghosts": [
-   {
-    "slot": "BCL7",
-    "members": [
-     "BCL7A",
-     "BCL7B",
-     "BCL7C"
-    ],
-    "reason": "not modelled in 7VDV",
-    "anchor_subunits": []
-   }
-  ]
+  "ghosts": [],
+  "atoms": 40353
  },
  "ncBAF": {
   "complex": "ncBAF",
@@ -235,59 +267,73 @@
   "chains": [
    {
     "symbol": "SMARCA4",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "H4_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "Q6AZJ8_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2B11_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H32_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H4_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "Q6AZJ8_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "H2B11_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "DNA",
-    "kind": "dna"
+    "kind": "dna",
+    "tier": "experimental"
    },
    {
     "symbol": "DNA",
-    "kind": "dna"
+    "kind": "dna",
+    "tier": "experimental"
    },
    {
     "symbol": "H32_XENLA",
-    "kind": "histone"
+    "kind": "histone",
+    "tier": "experimental"
    },
    {
     "symbol": "ACTB",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "ACTL6A",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    },
    {
     "symbol": "BCL7A",
-    "kind": "subunit"
+    "kind": "subunit",
+    "tier": "experimental"
    }
   ],
   "ghosts": [
@@ -311,8 +357,7 @@
    {
     "slot": "SMARCC scaffold",
     "members": [
-     "SMARCC1",
-     "SMARCC2"
+     "SMARCC1"
     ],
     "reason": "not modelled in 9WBZ",
     "anchor_subunits": []
@@ -320,9 +365,7 @@
    {
     "slot": "SMARCD",
     "members": [
-     "SMARCD1",
-     "SMARCD2",
-     "SMARCD3"
+     "SMARCD1"
     ],
     "reason": "not modelled in 9WBZ",
     "anchor_subunits": []
@@ -336,6 +379,7 @@
     "reason": "not modelled in 9WBZ",
     "anchor_subunits": []
    }
-  ]
+  ],
+  "atoms": 24573
  }
 }

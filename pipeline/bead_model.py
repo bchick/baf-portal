@@ -39,6 +39,18 @@ MIN_RUN = 6             # residues per exact sequence match used for numbering
 MIN_COVERAGE = 0.05     # a subunit chain with less aligned is almost certainly misassigned
 TIE = 1.5                # A: histone fits this close to the best count as equivalent
 
+# Subunits a complex's own structure does not resolve, borrowed from another
+# experimental structure by superposing a module both structures share (C-alpha
+# pairs matched by UniProt residue). Drawn as "placed" in the browser.
+#   complex: [(symbol, source complex, fit symbols, max fit RMSD in A)]
+PLACED = {
+    "cBAF": [("BCL7A", "ncBAF", ("ACTB", "ACTL6A", "SMARCA4"), 3.0)],
+    "PBAF": [("BCL7A", "ncBAF", ("ACTB", "ACTL6A", "SMARCA4"), 3.0)],
+}
+PLACE_WINDOW = 12.0      # A: fit only on shared-module residues this close to the borrowed chain
+CLASH = 3.0              # A: C-alpha pairs closer than this count as clashes
+ATOM_SCALE = 10          # atoms file stores coordinates as int16 in 0.1 A
+
 
 def classify(c: dict) -> str:
     if c["kind"] in ("subunit", "histone", "dna"):
@@ -118,17 +130,81 @@ def uniprot_numbers(pdb: str, chains: dict, seqs: dict[str, str]) -> dict[str, d
     return out
 
 
+def place(name: str, chains: dict, numbering: dict, loaded: dict, all_numbering: dict) -> list[dict]:
+    """Copy each PLACED chain from its source structure into `chains` (in place),
+    superposed on the C-alphas of the fit subunits near it. Returns provenance."""
+    out = []
+    for sym, src_name, fit_syms, max_rmsd in PLACED.get(name, []):
+        src, src_num = loaded[src_name], all_numbering[src_name]
+        src_ids = [cid for cid, c in src.items() if c["symbol"] == sym]
+        if not src_ids or any(c["symbol"] == sym for c in chains.values()):
+            continue
+        near = np.vstack([src[cid]["xyz"] for cid in src_ids])
+
+        def keyed(chs, num):
+            d = {}
+            for cid, c in chs.items():
+                if c["symbol"] in fit_syms:
+                    for r, p in zip(num[cid]["res"], c["xyz"]):
+                        if r:
+                            d[(c["symbol"], r)] = p
+            return d
+        a, b = keyed(src, src_num), keyed(chains, numbering)
+        keys = [k for k in sorted(set(a) & set(b))
+                if np.linalg.norm(near - a[k], axis=1).min() <= PLACE_WINDOW]
+        if len(keys) < 12:
+            raise AssertionError(f"{name}: only {len(keys)} shared C-alphas to place {sym} from {src_name}")
+        P = np.array([a[k] for k in keys]); Q = np.array([b[k] for k in keys])
+        R, t = kabsch(P, Q)
+        rmsd = float(np.sqrt((((P @ R.T + t) - Q) ** 2).sum(1).mean()))
+        if rmsd > max_rmsd:
+            raise AssertionError(f"{name}: placing {sym} from {src_name} fits at {rmsd:.2f} A > {max_rmsd} A")
+        others = np.vstack([c["xyz"] for c in chains.values()])
+        for cid in src_ids:
+            c = src[cid]
+            new = {**c, "xyz": c["xyz"] @ R.T + t, "atoms": c["atoms"] @ R.T + t}
+            clashes = int((np.linalg.norm(new["xyz"][:, None] - others[None], axis=2) < CLASH).any(1).sum())
+            key = f"{sym}~{cid}"                     # borrowed chains sort after the structure's own
+            new["tier"] = "placed"
+            new["source"] = {"pdb": MODELS[src_name][0], "pmid": MODELS[src_name][1], "chain": cid,
+                             "fit_on": sorted({k[0] for k in keys}), "fit_calpha": len(keys),
+                             "rmsd": round(rmsd, 2), "calpha_clashes": clashes}
+            chains[key] = new
+            numbering[key] = src_num[cid]
+            out.append({"symbol": sym, **new["source"]})
+            print(f"  {name}: placed {sym} from {MODELS[src_name][0]} chain {cid} on {len(keys)} C-alphas of "
+                  f"{'/'.join(new['source']['fit_on'])}, RMSD {rmsd:.2f} A, {clashes} C-alphas within {CLASH} A")
+    return out
+
+
+def write_atoms(name: str, chains_sorted: list) -> int:
+    """<name>.atoms.bin: uint32 n | int16 xyz[3n] (0.1 A) | uint8 chain[n] | uint8 elem[n] | pad."""
+    xyz = np.vstack([c["atoms"] for _, c in chains_sorted])
+    ch = np.concatenate([np.full(len(c["atoms"]), i, np.uint8) for i, (_, c) in enumerate(chains_sorted)])
+    el = np.concatenate([c["elem"] for _, c in chains_sorted]).astype(np.uint8)
+    q = np.round(xyz * ATOM_SCALE)
+    assert np.abs(q).max() < 32767, f"{name}: coordinates overflow int16"
+    n = len(xyz)
+    with open(OUT / f"{name}.atoms.bin", "wb") as fh:
+        fh.write(np.uint32(n).tobytes()); fh.write(q.astype("<i2").tobytes())
+        fh.write(ch.tobytes()); fh.write(el.tobytes())
+    return n
+
+
 def export(name: str, pdb: str, pmid: str, chains: dict, ghosts: list, rmsd: float | None,
            numbering: dict[str, dict]) -> dict:
     out_chains, beads, res = [], [], []
-    for i, (cid, c) in enumerate(sorted(chains.items())):
+    chains_sorted = sorted(chains.items(), key=lambda kv: ("~" in kv[0], kv[0]))
+    for i, (cid, c) in enumerate(chains_sorted):
         cov = numbering[cid]["coverage"]
         out_chains.append({"chain": cid, "symbol": c["symbol"], "kind": classify(c), "uniprot": c["uniprot"],
                            "n": len(c["xyz"]), "centroid": np.round(c["xyz"].mean(0), 1).tolist(),
-                           "uniprot_coverage": None if cov is None else round(cov, 3)})
+                           "uniprot_coverage": None if cov is None else round(cov, 3),
+                           "tier": c.get("tier", "experimental"), **({"source": c["source"]} if "source" in c else {})})
         res.extend(numbering[cid]["res"])
         for p in c["xyz"]:
             beads.extend([round(float(p[0]), 1), round(float(p[1]), 1), round(float(p[2]), 1), i])
+    n_atoms = write_atoms(name, chains_sorted)
     allxyz = np.array(beads).reshape(-1, 4)[:, :3]
     write_json(OUT / f"{name}.json", {
         "complex": name, "pdb": pdb, "pmid": pmid,
@@ -146,8 +222,9 @@ def export(name: str, pdb: str, pmid: str, chains: dict, ghosts: list, rmsd: flo
             sa = "n/a" if n["sifts_agreement"] is None else f"{n['sifts_agreement']:.0%}"
             print(f"  {pdb} {cid} {chains[cid]['symbol']}: {n['coverage']:.0%} of beads aligned; SIFTS agrees on {sa}")
     meta = {"complex": name, "pdb": pdb, "pmid": pmid,
-            "chains": [{"symbol": c["symbol"], "kind": c["kind"]} for c in out_chains], "ghosts": ghosts}
-    print(f"{name} {pdb}: {len(out_chains)} chains, {len(beads) // 4} beads, "
+            "chains": [{"symbol": c["symbol"], "kind": c["kind"], "tier": c["tier"]} for c in out_chains],
+            "ghosts": ghosts, "atoms": n_atoms}
+    print(f"{name} {pdb}: {len(out_chains)} chains, {len(beads) // 4} beads, {n_atoms} atoms, "
           f"{sum(1 for r in res if r)} mapped to UniProt"
           + ("" if rmsd is None else f", superposed RMSD {rmsd:.2f} A"))
     return meta
@@ -167,9 +244,10 @@ def main() -> None:
     Rv = np.array(layout["view"]["rotation"])
     for c in ref.values():
         c["xyz"] = (c["xyz"] - center) @ Rv.T
+        c["atoms"] = (c["atoms"] - center) @ Rv.T
     ref_anchor = anchor_atoms(ref)
 
-    index = {}
+    fits = {}
     for name, (pdb, pmid) in MODELS.items():
         chains, rmsd = loaded[name], None
         if name != REFERENCE:
@@ -179,7 +257,7 @@ def main() -> None:
             # one that places SMARCA4 closest to its cBAF position (same pose).
             ref_atp = np.vstack([c["xyz"] for c in ref.values() if c["symbol"] == "SMARCA4"]).mean(0)
             atp = np.vstack([c["xyz"] for c in chains.values() if c["symbol"] == "SMARCA4"]).mean(0)
-            fits = []
+            cands = []
             for swap in ({"H3": a, "H4": b} for a in (False, True) for b in (False, True)):
                 mob = anchor_atoms(chains, swap)
                 keys = sorted(set(mob) & set(ref_anchor))
@@ -187,13 +265,23 @@ def main() -> None:
                 R, t = kabsch(P, Q)
                 e = float(np.sqrt((((P @ R.T + t) - Q) ** 2).sum(1).mean()))
                 d = float(np.linalg.norm(atp @ R.T + t - ref_atp))
-                fits.append((e, d, R, t, len(keys), swap))
-            best_e = min(f[0] for f in fits)
-            rmsd, d, R, t, n_anchor, swap = min((f for f in fits if f[0] <= best_e + TIE), key=lambda f: f[1])
+                cands.append((e, d, R, t, len(keys), swap))
+            best_e = min(f[0] for f in cands)
+            rmsd, d, R, t, n_anchor, swap = min((f for f in cands if f[0] <= best_e + TIE), key=lambda f: f[1])
             print(f"  {name}: {n_anchor} histone C-alphas; fits (rmsd, SMARCA4 offset) "
-                  + ", ".join(f"({f[0]:.2f}, {f[1]:.0f})" for f in fits) + f"; chose {swap}")
+                  + ", ".join(f"({f[0]:.2f}, {f[1]:.0f})" for f in cands) + f"; chose {swap}")
             for c in chains.values():
                 c["xyz"] = c["xyz"] @ R.T + t
+                c["atoms"] = c["atoms"] @ R.T + t
+        fits[name] = rmsd
+
+    # every structure is now in the shared frame: borrow unresolved subunits
+    for name in MODELS:
+        place(name, loaded[name], numbering[name], loaded, numbering)
+
+    index = {}
+    for name, (pdb, pmid) in MODELS.items():
+        chains, rmsd = loaded[name], fits[name]
         # Complex members with no chain in the model become 3D ghosts anchored
         # between the subunits they bind (cBAF anchors curated in cartoon_layout).
         present = {c["symbol"] for c in chains.values()}

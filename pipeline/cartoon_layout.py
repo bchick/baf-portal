@@ -59,10 +59,14 @@ def chain_map(pdb: str, comp: dict) -> dict[str, dict]:
 
 
 def ca_coords(st: gemmi.Structure, cmap: dict) -> dict[str, dict]:
+    """One bead (C-alpha, or P / C4' for DNA) per residue, plus the residue's
+    heavy atoms for the atom-level renderer: `atoms` (xyz), `elem` (0 carbon,
+    1 other, 2 sulfur) and `atom_bead` (index of the atom's residue bead)."""
     model = st[0]
     chains = {}
     for ch in model:
         pts, resnums, labels, aas = [], [], [], []
+        atoms, elem, atom_bead = [], [], []
         is_dna = False
         for res in ch:
             info = gemmi.find_tabulated_residue(res.name)
@@ -72,6 +76,12 @@ def ca_coords(st: gemmi.Structure, cmap: dict) -> dict[str, dict]:
             else:
                 a = res.find_atom("CA", "*")
             if a:
+                for at in res:
+                    if at.element.is_hydrogen or (at.altloc not in ("\0", "A")):
+                        continue
+                    atoms.append([at.pos.x, at.pos.y, at.pos.z])
+                    elem.append(0 if at.element.name == "C" else 2 if at.element.name == "S" else 1)
+                    atom_bead.append(len(pts))
                 pts.append([a.pos.x, a.pos.y, a.pos.z])
                 resnums.append(res.seqid.num)
                 labels.append(res.label_seq if res.label_seq is not None else -1)
@@ -81,7 +91,9 @@ def ca_coords(st: gemmi.Structure, cmap: dict) -> dict[str, dict]:
         meta = cmap.get(ch.name) or {"symbol": "DNA" if is_dna else ch.name,
                                      "kind": "dna" if is_dna else "other", "uniprot": None}
         chains[ch.name] = {**meta, "xyz": np.array(pts), "res": np.array(resnums),
-                           "label_seq": np.array(labels), "aa": aas}
+                           "label_seq": np.array(labels), "aa": aas,
+                           "atoms": np.array(atoms).reshape(-1, 3), "elem": np.array(elem, dtype=np.uint8),
+                           "atom_bead": np.array(atom_bead, dtype=np.int32)}
     return chains
 
 

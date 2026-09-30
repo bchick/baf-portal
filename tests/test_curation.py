@@ -178,3 +178,32 @@ def test_shared_cartoon_frame_is_common_and_contains_every_complex():
     for c in cs:
         x, y, s = c["frame"]
         assert sx - 0.1 <= x and sy - 0.1 <= y and x + s <= sx + ss + 0.1 and y + s <= sy + ss + 0.1, c["complex"]
+
+
+def test_placed_chains_carry_provenance_and_fit_well():
+    import json
+    for name in ("cBAF", "PBAF"):
+        m = json.loads((MODELS / f"{name}.json").read_text())
+        placed = [c for c in m["chains"] if c["tier"] == "placed"]
+        assert [c["symbol"] for c in placed] == ["BCL7A"], name
+        src = placed[0]["source"]
+        assert src["pdb"] == "9WBZ" and src["rmsd"] <= 3.0 and src["fit_calpha"] >= 12
+        assert src["calpha_clashes"] <= 10
+
+
+def test_atom_files_match_their_models():
+    import json
+    for name in ("cBAF", "PBAF", "ncBAF"):
+        m = json.loads((MODELS / f"{name}.json").read_text())
+        buf = (MODELS / f"{name}.atoms.bin").read_bytes()
+        n = int(np.frombuffer(buf[:4], "<u4")[0])
+        assert len(buf) == 4 + 8 * n
+        xyz = np.frombuffer(buf[4:4 + 6 * n], "<i2").reshape(-1, 3) / 10
+        chain = np.frombuffer(buf[4 + 6 * n:4 + 7 * n], np.uint8)
+        elem = np.frombuffer(buf[4 + 7 * n:], np.uint8)
+        assert chain.max() < len(m["chains"]) and set(np.unique(elem)) <= {0, 1, 2}
+        beads = np.array(m["beads"]).reshape(-1, 4)
+        for i, c in enumerate(m["chains"]):       # atoms sit on their chain's residues
+            a, b = xyz[chain == i], beads[beads[:, 3] == i, :3]
+            assert len(a) >= len(b), (name, c["chain"])
+            assert np.allclose(a.mean(0), b.mean(0), atol=4.0), (name, c["chain"])
