@@ -41,35 +41,49 @@ for (const [name, hash, w, scheme] of ROUTES) {
   await p.close();
 }
 
-// Film strips through the select -> complex -> subunit -> back flow, driven
-// by hash changes (the same path a click takes).
+// Frame rate while spinning on the select screen (real clock).
+{
+  const p = await page(1400, 'light');
+  await p.goto(BASE + '#/');
+  await p.waitForTimeout(1500);
+  const fps = await p.evaluate(() => new Promise((res) => {
+    let n = 0; const t0 = performance.now();
+    const f = () => { n++; performance.now() - t0 < 2000 ? requestAnimationFrame(f) : res(n / 2); };
+    requestAnimationFrame(f);
+  }));
+  console.log('spin fps'.padEnd(16), fps.toFixed(1));
+  await p.close();
+}
+
+// Film strips through select -> complex -> subunit (incl. the stage -> domain
+// map morph) -> back. Page time runs on Playwright's fake clock so each frame
+// is taken at exactly its labelled time; screenshots are too slow under a
+// software renderer for real-time labels to mean anything. Navigation uses
+// hash changes (the path a click takes); data fetches get real time to finish.
 const p = await page(1400, 'light');
+await p.clock.install();
 await p.goto(BASE + '#/');
-await p.waitForTimeout(1500);
-// frame rate while spinning on the select screen
-const fps = await p.evaluate(() => new Promise((res) => {
-  let n = 0; const t0 = performance.now();
-  const f = () => { n++; performance.now() - t0 < 2000 ? requestAnimationFrame(f) : res(n / 2); };
-  requestAnimationFrame(f);
-}));
-console.log('spin fps'.padEnd(16), fps.toFixed(1));
+await p.waitForTimeout(2500);
+await p.clock.pauseAt(await p.evaluate(() => Date.now() + 1000));
 async function strip(label, hash, times) {
   await p.evaluate((h) => { location.hash = h; }, hash);
-  const t0 = Date.now();
-  for (const t of times) {
-    await p.waitForTimeout(Math.max(0, t - (Date.now() - t0)));
-    await p.screenshot({ path: `${OUT}/${label}-${String(t).padStart(4, '0')}ms.png` });
+  await p.waitForTimeout(400);
+  let t = 0;
+  for (const at of times) {
+    await p.clock.runFor(at - t); t = at;
+    await p.screenshot({ path: `${OUT}/${label}-${String(at).padStart(4, '0')}ms.png` });
   }
 }
 await strip('t1-select-to-cbaf', '#/cBAF', [120, 350, 700, 1400]);
-await strip('t2-cbaf-to-smarca4', '#/cBAF/SMARCA4', [120, 350, 700, 1400]);
-await strip('t3-smarca4-to-arid1b', '#/cBAF/ARID1B', [200, 600, 1400]);
+await strip('t2-cbaf-to-smarca4-morph', '#/cBAF/SMARCA4', [150, 450, 750, 1000, 1500]);
+await strip('t3-smarca4-to-smarcb1-morph', '#/cBAF/SMARCB1', [300, 800, 1500]);
 await strip('t4-back-to-select', '#/', [300, 1400]);
 await p.hover('a.pick:nth-child(2)');
-await p.waitForTimeout(250);
+await p.clock.runFor(250);
 await p.screenshot({ path: `${OUT}/t5-swap-to-pbaf-mid.png` });
-await p.waitForTimeout(1200);
+await p.clock.runFor(1200);
 await p.screenshot({ path: `${OUT}/t5-swap-to-pbaf-end.png` });
+if (p.errs.length) bad++;
 console.log('transitions'.padEnd(16), p.errs.length ? 'ERR ' + p.errs.join(' | ') : 'ok');
 await browser.close();
 process.exit(bad ? 1 : 0);

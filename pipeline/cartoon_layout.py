@@ -62,7 +62,7 @@ def ca_coords(st: gemmi.Structure, cmap: dict) -> dict[str, dict]:
     model = st[0]
     chains = {}
     for ch in model:
-        pts, resnums = [], []
+        pts, resnums, labels, aas = [], [], [], []
         is_dna = False
         for res in ch:
             info = gemmi.find_tabulated_residue(res.name)
@@ -74,11 +74,14 @@ def ca_coords(st: gemmi.Structure, cmap: dict) -> dict[str, dict]:
             if a:
                 pts.append([a.pos.x, a.pos.y, a.pos.z])
                 resnums.append(res.seqid.num)
+                labels.append(res.label_seq if res.label_seq is not None else -1)
+                aas.append((info.one_letter_code.upper() if info and info.is_amino_acid() else "X"))
         if not pts:
             continue
         meta = cmap.get(ch.name) or {"symbol": "DNA" if is_dna else ch.name,
                                      "kind": "dna" if is_dna else "other", "uniprot": None}
-        chains[ch.name] = {**meta, "xyz": np.array(pts), "res": np.array(resnums)}
+        chains[ch.name] = {**meta, "xyz": np.array(pts), "res": np.array(resnums),
+                           "label_seq": np.array(labels), "aa": aas}
     return chains
 
 

@@ -82,3 +82,45 @@ def test_kabsch_recovers_a_rigid_transform_without_reflection():
     M = Q * np.array([1, 1, -1])                     # mirror image: must not be matched by a reflection
     R, _ = kabsch(P, M)
     assert np.isclose(np.linalg.det(R), 1.0)
+
+
+# ---- bead models: UniProt residue numbering used by the stage -> domain-map morph --------
+
+MODELS = CURATED.parent.parent / "site" / "src" / "lib" / "models"
+
+
+def _chain_res(model, symbol):
+    import json
+    m = json.loads((MODELS / f"{model}.json").read_text())
+    idx = {i for i, c in enumerate(m["chains"]) if c["symbol"] == symbol}
+    return m, [m["res"][k] for k in range(len(m["res"])) if m["beads"][4 * k + 3] in idx]
+
+
+def test_every_bead_has_a_residue_slot():
+    import json
+    for name in ("cBAF", "PBAF", "ncBAF"):
+        m = json.loads((MODELS / f"{name}.json").read_text())
+        assert len(m["res"]) == len(m["beads"]) // 4
+
+
+def test_subunit_chains_align_to_uniprot():
+    import json
+    for name in ("cBAF", "PBAF", "ncBAF"):
+        m = json.loads((MODELS / f"{name}.json").read_text())
+        for c in m["chains"]:
+            if c["kind"] == "subunit":
+                assert c["uniprot_coverage"] >= 0.9, (name, c["chain"], c["symbol"], c["uniprot_coverage"])
+
+
+def test_smarcb1_construct_gap_is_not_numbered_through():
+    """6LTJ's SMARCB1 construct skips UniProt 114-171: no bead may land there."""
+    _, res = _chain_res("cBAF", "SMARCB1")
+    mapped = [r for r in res if r]
+    assert min(mapped) >= 1 and max(mapped) <= 385
+    assert not [r for r in mapped if 114 <= r <= 171]
+
+
+def test_pbrm1_maps_where_sifts_did_not():
+    """SIFTS numbering for 7VDV PBRM1 matched UniProt at ~5%; alignment places it at the C-terminus."""
+    _, res = _chain_res("PBAF", "PBRM1")
+    assert res and all(1590 <= r <= 1681 for r in res)

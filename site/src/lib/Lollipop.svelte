@@ -11,7 +11,8 @@
   import { ticks as niceTicks } from 'd3-array';
   import { classKey, CLASS_ORDER, CLASS_COLOR } from './colors.js';
 
-  let { gene, tcga = null, color = 'var(--accent)', selectedP = null, onselect = () => {} } = $props();
+  let { gene, tcga = null, color = 'var(--accent)', selectedP = null, onselect = () => {},
+        awaitMorph = false, onready = () => {} } = $props();
 
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const L = $derived(gene.uniprot.length);
@@ -139,10 +140,42 @@
 
   const win = new Spring([0.5, 1000.5], { stiffness: 0.14, damping: 0.82 });
   let lastGene = null;
+  let intro = $state(false);
+  // `veiled`: a morph from the 3D stage is coming; stay hidden until its
+  // particles land (reveal), with a fallback so the plot can never stay hidden.
+  let veiled = $state(false);
+  let fallback = 0;
+  function playIntro() {
+    veiled = false;
+    if (reduce) return;
+    intro = true;
+    setTimeout(() => (intro = false), 1400);
+  }
   $effect(() => {
-    if (gene !== lastGene) { lastGene = gene; win.set([0.5, L + 0.5], { instant: true }); intro = !reduce; setTimeout(() => (intro = false), 1400); }
+    if (gene === lastGene) return;
+    lastGene = gene;
+    win.set([0.5, L + 0.5], { instant: true });
+    clearTimeout(fallback);
+    if (awaitMorph) { veiled = true; fallback = setTimeout(playIntro, 2400); } else playIntro();
   });
-  let intro = $state(!reduce);
+  $effect(() => () => clearTimeout(fallback));
+
+  // Morph target API: page coordinates of a residue on the backbone, read
+  // fresh each frame because the panel may still be sliding in.
+  function geometry() {
+    if (!svg) return null;
+    const r = svg.getBoundingClientRect();
+    if (!r.width) return null;
+    const span = x1 - x0;
+    return {
+      at: (u) => ({ x: r.left + M.l + ((u - x0) / span) * iw, y: r.top + Y_BAR,
+                    inDomain: domains.some((d) => u >= d.start && u <= d.end) }),
+    };
+  }
+  $effect(() => {
+    if (!svg) return;
+    onready({ gene: gene.gene, geometry, reveal: () => { clearTimeout(fallback); if (veiled) playIntro(); } });
+  });
 
   const x0 = $derived(win.current[0]), x1 = $derived(win.current[1]);
   const x = (p) => M.l + ((p - x0) / (x1 - x0)) * iw;
@@ -255,7 +288,7 @@
   </div>
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <svg bind:this={svg} width={width} height={HEIGHT} class:grabbing={!!drag} class:intro
+  <svg bind:this={svg} width={width} height={HEIGHT} class:grabbing={!!drag} class:intro class:veiled
        onpointerdown={pdown} onpointermove={pmove} onpointerup={pup} onwheel={wheel} ondblclick={dbl}
        onpointerleave={() => (tip = null)} role="img"
        aria-label="{gene.gene} domain map with {somatic.length} somatic and {germline.length} germline mutated residues">
@@ -414,6 +447,10 @@
   .ov-bg { fill: var(--bg-2); }
   .ov-win { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: var(--accent); stroke-width: 1.5; }
 
+  /* waiting for the 3D morph to land: backbone, domains and stems hidden */
+  .veiled .dom, .veiled .motif, .veiled .pop { opacity: 0; }
+  .veiled .bb, .veiled .idr { opacity: 0.35; }
+  .bb, .idr { transition: opacity 300ms; }
   /* entrance: domains pop, stems rise from the backbone in a left-to-right wave */
   .intro .dom rect { transform-box: fill-box; transform-origin: center; animation: dom-in 480ms cubic-bezier(.3,1.5,.5,1) var(--d) both; }
   .intro .pop { transform-box: fill-box; animation: rise 520ms cubic-bezier(.3,1.4,.5,1) var(--d) both; }

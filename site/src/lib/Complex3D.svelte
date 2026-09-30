@@ -16,7 +16,7 @@
 
   let {
     model, mode = 'complex', selected = null, highlight = null, complex = null,
-    onpick = () => {}, onhover = () => {},
+    onpick = () => {}, onhover = () => {}, onmorphsource = () => {},
   } = $props();
 
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -73,6 +73,7 @@
     const p = {
       src: m, n, center, R, chains, syms, ghosts3d, ghostsFlat,
       beads: new Float32Array(m.beads),
+      res: Int32Array.from(m.res ?? []),       // UniProt residue per bead (0 = unmapped)
       hover: new Float32Array(MAXC), off: new Float32Array(MAXC * 3),
       act: new Float32Array(MAXC), vao: null,
     };
@@ -115,11 +116,35 @@
     return g ? { cen: g.pos, ext: 30, act: new Set() } : null;
   }
 
+  // Morph source: when a subunit gets selected, hand its beads' current
+  // on-screen positions and UniProt residue numbers to the page (before the
+  // camera starts moving), so they can fly onto the subunit's domain map.
+  // Only the selected symbol's own chains are used: a paralog's modelled
+  // chain has different residue numbers.
+  let lastSelected = null;
+  function screenPoints(p, sym) {
+    if (!cvs || !W) return [];
+    const cam = camera(p), rect = cvs.getBoundingClientRect(), out = [];
+    for (let i = 0; i < p.n; i++) {
+      const c = p.chains[p.beads[4 * i + 3]];
+      if (c.symbol !== sym || !p.res[i]) continue;
+      const [sx, sy, , k] = proj(cam, p.beads[4 * i] + p.off[3 * c.i], p.beads[4 * i + 1] + p.off[3 * c.i + 1],
+        p.beads[4 * i + 2] + p.off[3 * c.i + 2]);
+      out.push({ x: rect.left + sx, y: rect.top + sy, r: BEAD * cam.scale * k, u: p.res[i] });
+    }
+    return out;
+  }
+
   let userYaw = 0, userPitch = -0.05;
   // Retarget springs whenever mode / selection / model change.
   $effect(() => {
     const p = next ?? cur;
     if (!p) return;
+    if (mode === 'complex' && selected && selected !== lastSelected && !reduce) {
+      const points = screenPoints(p, selected);
+      if (points.length) onmorphsource({ sym: selected, points, color: colorOf(selected) });
+    }
+    lastSelected = mode === 'complex' ? selected : null;
     const f = mode === 'complex' ? focusOf(p, selected) : null;
     for (const q of [cur, next]) if (q) {
       const fq = q === p ? f : mode === 'complex' ? focusOf(q, selected) : null;

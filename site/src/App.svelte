@@ -11,6 +11,7 @@
   import Complex3D from './lib/Complex3D.svelte';
   import Lollipop from './lib/Lollipop.svelte';
   import MutationPanel from './lib/MutationPanel.svelte';
+  import MorphOverlay from './lib/MorphOverlay.svelte';
   import { route, href, go } from './lib/router.svelte.js';
   import * as data from './lib/data.js';
   import { DATA_GENES } from './lib/data.js';
@@ -52,6 +53,21 @@
   const onStage = $derived(view.kind === 'select' || view.kind === 'complex');
   const stageId = $derived(view.kind === 'complex' ? view.id : pickId);
   $effect(() => { if (view.kind === 'complex') pickId = view.id; });
+
+  // Stage -> domain-map morph: Complex3D hands over the selected subunit's
+  // bead positions; the overlay flies them to the Lollipop once it is ready.
+  let overlay;
+  let morphSrc = $state.raw(null);   // {sym, points, color} while a morph is pending
+  let lolli = $state.raw(null);      // target API of the mounted Lollipop
+  function startMorph(src) {
+    if (!DATA_GENES.includes(src.sym)) return;
+    morphSrc = src;
+    overlay?.run(src, () => {
+      if (lolli?.gene !== src.sym) return null;
+      return { geometry: lolli.geometry, reveal: () => { lolli.reveal(); if (morphSrc === src) morphSrc = null; } };
+    });
+  }
+  $effect(() => { if (morphSrc && morphSrc.sym !== sym) { overlay?.cancel(); morphSrc = null; } });
 
   let hot3d = $state(null);     // subunit under the cursor in 3D
   let hotList = $state(null);   // subunit under the cursor in the side panel
@@ -268,7 +284,8 @@
       {/if}
 
       <h3 class="sub">Domain map & mutations</h3>
-      <Lollipop {gene} {tcga} color={colorOf(s.symbol)} selectedP={view.pchange} onselect={selectVariant} />
+      <Lollipop {gene} {tcga} color={colorOf(s.symbol)} selectedP={view.pchange} onselect={selectVariant}
+                awaitMorph={morphSrc?.sym === s.symbol} onready={(api) => (lolli = api)} />
 
       {#if view.pchange}
         {#key view.pchange}
@@ -385,6 +402,7 @@
 {/snippet}
 
 <svelte:window onkeydown={onkey} />
+<MorphOverlay bind:this={overlay} />
 
 <header class="top">
   <a class="brand" href="#/">
@@ -420,7 +438,7 @@
       <div class="stage">
         <Complex3D model={MODELS[stageId]} mode={view.kind === 'select' ? 'select' : 'complex'}
                    selected={sym} highlight={hotList} complex={{ id: stageId, ...comp.complexes[stageId] }}
-                   {onpick} onhover={(s) => (hot3d = s)} />
+                   {onpick} onhover={(s) => (hot3d = s)} onmorphsource={startMorph} />
         <p class="stage-hint" class:gone={view.kind !== 'select'}>
           {MODELS[stageId].pdb} · drag to rotate after selecting
         </p>
