@@ -15,7 +15,7 @@
 #   species           all complexes in `complexes` are characterised in human
 #                     cells. `mouse_only` complexes are shown in a separate tab.
 
-version: 2026-09-29
+version: 2026-09-30
 curator: Brent Chick
 
 references:
@@ -40,6 +40,12 @@ references:
   "17640523": Lessard 2007 Neuron — npBAF to nBAF switch (mouse)
   "19279220": Ho 2009 PNAS — esBAF (mouse ES cells)
   "19561591": Yoo 2009 Nature — miRNA-mediated npBAF/nBAF switch (mouse/human neurons)
+  "11780067": Lemon 2001 Nature — PBAF purified with BRG1 and not BRM (cited for this by Kadoch 2015)
+  "30431433": Brien 2018 eLife — BRD9 degradation in synovial sarcoma; BRD9-containing GBAF/ncBAF
+  "31015438": Wang 2019 Nat Commun — BRD9 defines a SWI/SNF sub-complex; vulnerability in rhabdoid tumours
+  "31427792": Schick 2019 Nat Genet — 22 BAF subunit knockouts in HAP1; SMARCD1-BRD9-BICRA module; intra-complex synthetic lethalities
+  "39014081": Malone 2024 Nat Rev Drug Discov — review (Malone & Roberts); Table 1 lists subunits per complex
+  "26601204": Kadoch 2015 Sci Adv — review (Kadoch & Crabtree); Fig. 2 lists mouse esBAF/npBAF/nBAF compositions
 
 complexes:
 
@@ -102,8 +108,8 @@ complexes:
         contested: true
         contested_notes:
           - member: SMARCA2
-            claim: "Xue 2000 purified PBAF (SWI/SNF-B) with BRG1 and reported BRM absent; later IP-MS work reports SMARCA2-containing PBAF at lower abundance."
-            pmids: ["11078522", "30343899"]
+            claim: "Xue 2000 and Lemon 2001 purified PBAF with BRG1 and not BRM (Kadoch 2015 p.8: \"Brg (but not Brm)\"); later IP-MS work reports SMARCA2-containing PBAF at lower abundance, and Malone 2024 Table 1 lists SMARCA2 in PBAF."
+            pmids: ["11078522", "11780067", "26601204", "30343899", "39014081"]
             needs_review: true
       - slot: ARID
         members: [ARID2]
@@ -137,12 +143,11 @@ complexes:
         pmids: ["30343899"]
       - slot: BCL7
         members: [BCL7A, BCL7B, BCL7C]
-        pmids: ["23644491", "30343899"]
+        pmids: ["23644491", "30343899", "39014081"]
         contested: true
         contested_notes:
-          - claim: "Proteomic studies detect BCL7 proteins in PBAF purifications; BCL7 is not modelled in the nucleosome-bound PBAF cryo-EM structures."
-            pmids: ["23644491", "30343899", "35477757", "36496390"]
-            needs_review: true
+          - claim: "Proteomic studies detect BCL7 proteins in PBAF purifications (Malone 2024 Table 1 lists BCL7A/B/C in PBAF); BCL7 is not modelled in the nucleosome-bound PBAF cryo-EM structures."
+            pmids: ["23644491", "30343899", "39014081", "35477757", "36496390"]
     absent: [ARID1A, ARID1B, DPF1, DPF2, DPF3, SS18, SS18L1, BICRA, BICRAL, BRD9]
 
   ncBAF:
@@ -151,7 +156,7 @@ complexes:
     species: human
     structures:
       - {pdb: 9WBZ, method: cryo-EM, pmid: "41402274", note: "base module not resolved; unmodelled members shown as chips"}
-    defining_pmids: ["29374058", "30343899", "30397315"]
+    defining_pmids: ["29374058", "30343899", "30397315", "30431433", "31015438"]
     slots:
       - slot: ATPase
         members: [SMARCA4, SMARCA2]
@@ -163,23 +168,21 @@ complexes:
         members: [BRD9]
         pmids: ["30343899", "30397315"]
       - slot: SMARCC scaffold
-        members: [SMARCC1, SMARCC2]
-        pmids: ["29374058", "30343899"]
+        members: [SMARCC1]
+        pmids: ["29374058", "30343899", "39014081"]
         contested: true
         contested_notes:
           - member: SMARCC2
-            claim: "ncBAF is described as SMARCC1-containing; whether SMARCC2 is incorporated differs between purifications."
-            pmids: ["29374058", "30343899"]
-            needs_review: true
+            claim: "ncBAF is described as SMARCC1-containing (Malone 2024 Table 1: SMARCC1 +, SMARCC2 –); SMARCC2 is listed as absent, but whether it is incorporated has differed between purifications."
+            pmids: ["29374058", "30343899", "39014081"]
       - slot: SMARCD
-        members: [SMARCD1, SMARCD2, SMARCD3]
-        pmids: ["30343899"]
+        members: [SMARCD1]
+        pmids: ["30343899", "30397315", "31427792", "39014081"]
         contested: true
         contested_notes:
           - member: [SMARCD2, SMARCD3]
-            claim: "SMARCD1 is the predominant SMARCD paralog reported in ncBAF; SMARCD2/SMARCD3 incorporation is less consistently observed."
-            pmids: ["30343899", "30397315"]
-            needs_review: true
+            claim: "SMARCD1 is the SMARCD paralog reported in ncBAF (Malone 2024 Table 1: SMARCD2/SMARCD3 –; Schick 2019: a SMARCD1-BRD9-BICRA module, lost in SMARCD1 knockout cells); SMARCD2/SMARCD3 are listed as absent."
+            pmids: ["30343899", "30397315", "31427792", "39014081"]
       - slot: SS18
         members: [SS18, SS18L1]
         pmids: ["30343899", "30397315"]
@@ -192,7 +195,7 @@ complexes:
       - slot: BCL7
         members: [BCL7A, BCL7B, BCL7C]
         pmids: ["30343899"]
-    absent: [SMARCB1, SMARCE1, ARID1A, ARID1B, ARID2, DPF1, DPF2, DPF3, PBRM1, BRD7, PHF10]
+    absent: [SMARCC2, SMARCD2, SMARCD3, SMARCB1, SMARCE1, ARID1A, ARID1B, ARID2, DPF1, DPF2, DPF3, PBRM1, BRD7, PHF10]
 
 # Biochemically defined only in mouse. Displayed in a separate tab labelled
 # "characterized in mouse; inferred in human". Do not present as human data.
@@ -202,21 +205,18 @@ mouse_only:
     esBAF:
       name: embryonic stem cell BAF
       species: mouse
-      pmids: ["19279220"]
-      defining_features: "SMARCA4 (not SMARCA2); SMARCC1 homodimer (no SMARCC2); ACTL6A; SMARCD1"
-      needs_review: true
+      pmids: ["19279220", "26601204"]
+      defining_features: "SMARCA4 (not SMARCA2); SMARCC1 homodimer (no SMARCC2); ACTL6A; SMARCD1/SMARCD2 (BAF60a,b; Kadoch 2015 Fig. 2)"
     npBAF:
       name: neural progenitor BAF
       species: mouse
-      pmids: ["17640523", "19561591"]
-      defining_features: "ACTL6A (BAF53a) and PHF10 (BAF45a)/DPF paralogs in progenitors; SS18"
-      needs_review: true
+      pmids: ["17640523", "19561591", "26601204"]
+      defining_features: "ACTL6A (BAF53a); PHF10 (BAF45a) or DPF2 (BAF45d); SS18. Defined by assembly rather than progenitor-only subunits (Kadoch 2015 Fig. 2)"
     nBAF:
       name: neuronal BAF
       species: mouse
       pmids: ["17640523", "19561591"]
       defining_features: "ACTL6B (BAF53b), DPF1/DPF3 (BAF45b/c) and SS18L1 (CREST) replace progenitor paralogs after mitotic exit"
-      needs_review: true
 
 # Subunit identifiers. HGNC fields from rest.genenames.org and UniProt accession
 # (reviewed, human, gene_exact) from rest.uniprot.org, both queried 2026-09-29.
