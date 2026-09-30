@@ -6,16 +6,35 @@
   // columns with leader lines. Subunits are links; hover and selection follow
   // the 3D view's behaviour, and selecting a subunit emits morph source points
   // (its beads' screen positions + UniProt residues) like Complex3D does.
+  import { untrack } from 'svelte';
+  import { Tween } from 'svelte/motion';
+  import { cubicInOut } from 'svelte/easing';
   import { colorOf } from './colors.js';
 
   let {
-    cartoon, model = null, complex = null, selected = null, highlight = null, mode = 'complex',
+    cartoon, model = null, complex = null, selected = null, highlight = null, mode = 'complex', scaleMode = 'fit',
     onpick = () => {}, onhover = () => {}, onmorphsource = null,
   } = $props();
 
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   let svg = $state(), width = $state(600);
-  const [fx, fy, fs] = $derived(cartoon.frame);
+  // 'fit': this complex's own frame (matches the 3D view); 'shared': one frame
+  // for all three complexes (same scale, nucleosome in the same place).
+  // The frame tweens so switching modes (or complexes) zooms instead of jumping.
+  const target = $derived(scaleMode === 'shared' && cartoon.shared_frame ? cartoon.shared_frame : cartoon.frame);
+  const frameT = new Tween(null, { duration: reduce ? 0 : 520, easing: cubicInOut });
+  // read the tween's current value untracked: depending on it would re-run this
+  // effect every animation frame and restart the tween from where it is
+  $effect(() => { const t = target; untrack(() => frameT.set(t, { duration: frameT.current ? undefined : 0 })); });
+  const [fx, fy, fs] = $derived(frameT.current ?? target);
+
+  // scale bar: a round length near 18% of the frame
+  const bar = $derived.by(() => {
+    const want = fs * 0.18;
+    const L = [10, 20, 25, 50, 100, 200].reduce((a, b) => (Math.abs(b - want) < Math.abs(a - want) ? b : a));
+    // sit above the "not resolved" chips row when the complex has one
+    return { L, x: fx + 14 / px, y: fy + fs - (cartoon.ghosts_flat?.length ? 46 : 16) / px };
+  });
   const px = $derived(width / fs);                  // screen px per Angstrom
   const LABEL_PX = 12.5;
 
@@ -49,7 +68,7 @@
     for (const side of ['L', 'R']) {
       const col = out.filter((l) => !l.inside && (l.anchor[0] < cartoon.center[0]) === (side === 'L'))
         .sort((a, b) => a.anchor[1] - b.anchor[1]);
-      let y = fy + 48 / px;               // clear of the 3D | Cartoon switch in the corner
+      let y = fy + (side === 'R' ? 86 : 24) / px;   // right column starts below the view/scale switches
       for (const l of col) {
         l.side = side;
         l.ty = Math.max(l.anchor[1], y);
@@ -95,10 +114,11 @@
     const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');
     style.textContent = `path{stroke:${cs.getPropertyValue('--bead-ink')};stroke-width:1.1;stroke-linejoin:round}
       text{font-family:Inter,Helvetica,Arial,sans-serif;font-weight:600;fill:#1b1f24}
-      .lead{stroke:#1b1f24;stroke-width:0.5;fill:none}.ghost circle{fill:none;stroke:#666;stroke-dasharray:4 3}`;
+      .lead{stroke:#1b1f24;stroke-width:0.5;fill:none}.ghost circle{fill:none;stroke:#666;stroke-dasharray:4 3}
+      .scalebar path{stroke:#1b1f24;stroke-width:1}`;
     clone.prepend(style);
     const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${cartoon.complex}-${cartoon.pdb}-cartoon.svg` });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${cartoon.complex}-${cartoon.pdb}-cartoon${scaleMode === 'shared' ? '-shared-scale' : ''}.svg` });
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
@@ -145,6 +165,13 @@
         <text x={g.pos[0]} y={g.pos[1] + 4 / px} style:font-size="{11 / px}px">{g.slot}</text>
       </a>
     {/each}
+
+    <!-- scale bar -->
+    <g class="scalebar" aria-label="Scale bar {bar.L} angstrom">
+      <path d="M{bar.x} {bar.y}H{bar.x + bar.L}" style:stroke-width="{2.5 / px}px" />
+      <path d="M{bar.x} {bar.y - 4 / px}V{bar.y + 4 / px}M{bar.x + bar.L} {bar.y - 4 / px}V{bar.y + 4 / px}" style:stroke-width="{1.2 / px}px" />
+      <text x={bar.x + bar.L / 2} y={bar.y - 7 / px} style:font-size="{10.5 / px}px">{bar.L} Å</text>
+    </g>
 
     <!-- labels -->
     <g class="labels" aria-hidden="true">
@@ -204,4 +231,6 @@
   .lead { stroke: var(--ink-2); fill: none; vector-effect: non-scaling-stroke; transition: opacity 300ms; }
   .dot { fill: var(--ink); transition: opacity 300ms; }
   .dim { opacity: 0.25; }
+  .scalebar path { stroke: var(--ink); fill: none; stroke-linecap: square; }
+  .scalebar text { text-anchor: middle; fill: var(--ink-2); font-family: var(--font); font-weight: 600; }
 </style>

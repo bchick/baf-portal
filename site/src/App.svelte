@@ -36,6 +36,8 @@
   let cartoons = $state.raw({});
   let viewMode = $state((() => { try { return localStorage.getItem('stageMode') || '3d'; } catch { return '3d'; } })());
   let noGL = $state(false);
+  let cartoonScale = $state((() => { try { return localStorage.getItem('cartoonScale') || 'fit'; } catch { return 'fit'; } })());
+  $effect(() => { try { localStorage.setItem('cartoonScale', cartoonScale); } catch {} });
   $effect(() => { try { localStorage.setItem('stageMode', viewMode); } catch {} });
   const showCartoon = $derived((viewMode === 'cartoon' || noGL) && view.kind === 'complex');
   $effect(() => {
@@ -542,6 +544,16 @@
             {/each}
           </div>
         {/if}
+        {#if showCartoon}
+          <div class="mode-switch scale-switch" role="radiogroup" aria-label="Cartoon scale"
+               transition:fly={{ y: -6, duration: ms(220) }}>
+            {#each [['fit', 'Fit'], ['shared', 'Same scale']] as [m, label]}
+              <button role="radio" aria-checked={cartoonScale === m} class:on={cartoonScale === m}
+                      title={m === 'shared' ? 'Same scale and position for cBAF, PBAF and ncBAF (aligned on the nucleosome)' : 'Fit this complex to the view'}
+                      onclick={() => (cartoonScale = m)}>{label}</button>
+            {/each}
+          </div>
+        {/if}
         <div class="layer" class:hidden-layer={showCartoon} inert={showCartoon}>
           <Complex3D model={shownModel} mode={view.kind === 'select' ? 'select' : 'complex'}
                      selected={sym} highlight={hotList} complex={{ id: stageId, ...comp.complexes[stageId] }}
@@ -550,7 +562,7 @@
         </div>
         {#if showCartoon && cartoons[stageId]}
           <div class="layer cartoon-layer" transition:fade={{ duration: ms(320) }}>
-            <Cartoon2D bind:this={cartoonEl} cartoon={cartoons[stageId]} model={models[stageId]}
+            <Cartoon2D bind:this={cartoonEl} cartoon={cartoons[stageId]} model={models[stageId]} scaleMode={cartoonScale}
                        complex={{ id: stageId, ...comp.complexes[stageId] }} selected={sym} highlight={hotList}
                        {onpick} onhover={(s) => (hot3d = s)} onmorphsource={startMorph} />
             {#if cartoons[stageId].ghosts_flat.length}
@@ -567,6 +579,7 @@
           <p class="stage-hint cartoon-caption">
             Front view of <a href="https://www.rcsb.org/structure/{cartoons[stageId].pdb}" target="_blank" rel="noopener">{cartoons[stageId].pdb}</a>.
             Each colour is the part of a subunit visible from this side; dashed circles are members not resolved in the structure.
+            {#if cartoonScale === 'shared'}Same scale as the other complexes, aligned on the nucleosome.{/if}
             <button class="linkish" onclick={() => cartoonEl?.saveSvg()}>Save SVG</button>
           </p>
         {:else}
@@ -686,6 +699,8 @@
   .mode-switch { position: absolute; top: 8px; right: 8px; z-index: 5; display: flex; gap: 2px; padding: 3px;
     border-radius: 999px; background: color-mix(in srgb, var(--surface) 85%, transparent); border: 1px solid var(--line);
     box-shadow: 0 2px 8px rgb(0 0 0 / 8%); backdrop-filter: blur(6px); }
+  .scale-switch { top: 46px; }
+  .scale-switch button { font-size: 11.5px; padding: 3px 10px; }
   .mode-switch button { all: unset; cursor: pointer; font-size: 12.5px; font-weight: 600; padding: 4px 12px; border-radius: 999px;
     color: var(--ink-2); transition: background 200ms, color 200ms; }
   .mode-switch button.on { background: var(--ink); color: var(--bg); }

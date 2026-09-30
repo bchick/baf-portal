@@ -163,3 +163,16 @@ def test_cartoon_framing_matches_the_3d_front_view():
         R = d[int(np.floor(0.99 * (len(d) - 1)))]
         assert np.allclose(c["center"], center[:2], atol=0.1)
         assert abs(c["frame"][2] - 2 * R / (0.94 * 1.02)) < 0.2
+
+
+def test_shared_cartoon_frame_is_common_and_contains_every_complex():
+    """'Same scale' mode: one frame for all complexes, so scale and nucleosome
+    position match across cBAF, PBAF and ncBAF."""
+    import json
+    cs = [json.loads((CARTOONS / f"{n}.json").read_text()) for n in ("cBAF", "PBAF", "ncBAF")]
+    shared = cs[0]["shared_frame"]
+    assert all(c["shared_frame"] == shared for c in cs)
+    sx, sy, ss = shared
+    for c in cs:
+        x, y, s = c["frame"]
+        assert sx - 0.1 <= x and sy - 0.1 <= y and x + s <= sx + ss + 0.1 and y + s <= sy + ss + 0.1, c["complex"]

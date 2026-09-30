@@ -10,7 +10,9 @@ the site can cross-fade between the two.
 
     pixi run cartoons     # writes site/src/lib/cartoons/{cBAF,PBAF,ncBAF}.json
 
-Coordinates are Angstrom in the bead-model frame (x right, y down).
+Coordinates are Angstrom in the bead-model frame (x right, y down). `frame`
+fits one complex (and matches the 3D view); `shared_frame` is common to all
+three, for same-scale, nucleosome-aligned comparison.
 """
 from __future__ import annotations
 
@@ -156,9 +158,22 @@ def build(name: str) -> dict:
     }
 
 
+def shared_frame(frames: list[list[float]]) -> list[float]:
+    """One square frame covering every complex. The bead models share a frame
+    (superposed on the nucleosome), so this gives all cartoons the same scale
+    AND position: the nucleosome sits in the same place in each."""
+    x0 = min(f[0] for f in frames); y0 = min(f[1] for f in frames)
+    x1 = max(f[0] + f[2] for f in frames); y1 = max(f[1] + f[2] for f in frames)
+    size = max(x1 - x0, y1 - y0)
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    return [round(cx - size / 2, 1), round(cy - size / 2, 1), round(size, 1)]
+
+
 def main() -> None:
-    for name in ("cBAF", "PBAF", "ncBAF"):
-        c = build(name)
+    built = {name: build(name) for name in ("cBAF", "PBAF", "ncBAF")}
+    common = shared_frame([c["frame"] for c in built.values()])
+    for name, c in built.items():
+        c["shared_frame"] = common
         json.dumps(c, allow_nan=False)            # fail loudly on inf/NaN rather than emit invalid JSON
         write_json(OUT / f"{name}.json", c)
         size = (OUT / f"{name}.json").stat().st_size
