@@ -36,7 +36,7 @@ references:
   "35477757": Yuan 2022 Nature — cryo-EM of nucleosome-bound human PBAF
   "36496390": Wang 2022 Nat Commun — cryo-EM of nucleosome-bound human PBAF
   "41402274": Chen 2025 Cell Discov — ncBAF recognizes the nucleosome through BCL7A (primary citation of PDB 9WBZ; verified against RCSB 2026-09-29)
-  "42377898": Xu 2026 J Mol Cell Biol — structure of ncBAF assembly and nucleosome recognition (separate paper; not the 9WBZ citation)
+  "42377898": Xu 2026 J Mol Cell Biol — structure of ncBAF assembly and nucleosome recognition (separate paper; not the 9WBZ citation; primary citation of PDB 21VV by title, RCSB lists no PMID 2026-09-30)
   "17640523": Lessard 2007 Neuron — npBAF to nBAF switch (mouse)
   "19279220": Ho 2009 PNAS — esBAF (mouse ES cells)
   "19561591": Yoo 2009 Nature — miRNA-mediated npBAF/nBAF switch (mouse/human neurons)
@@ -55,6 +55,7 @@ complexes:
     species: human
     structures:
       - {pdb: 6LTJ, method: cryo-EM, pmid: "32001526", note: nucleosome-bound; used for the cartoon layout}
+      - {pdb: 9A0K, method: integrative, pmid: "33053319", note: "integrative (crosslinking-MS) model of endogenous nucleosome-bound BAF"}
     defining_pmids: ["8895581", "30343899"]
     slots:
       - slot: ATPase
@@ -108,9 +109,8 @@ complexes:
         contested: true
         contested_notes:
           - member: SMARCA2
-            claim: "Xue 2000 and Lemon 2001 purified PBAF with BRG1 and not BRM (Kadoch 2015 p.8: \"Brg (but not Brm)\"); later IP-MS work reports SMARCA2-containing PBAF at lower abundance, and Malone 2024 Table 1 lists SMARCA2 in PBAF."
+            claim: "Xue 2000 and Lemon 2001 purified PBAF with BRG1 and not BRM (Kadoch 2015 p.8: \"Brg (but not Brm)\"); Mashtalir 2018 Fig. 6A-B detects SMARCA2 in ARID2- and PBRM1-bound PBAF from HEK293T cells (max spectral counts 61 and 56; SMARCA4 49 and 41), and Malone 2024 Table 1 lists SMARCA2 in PBAF."
             pmids: ["11078522", "11780067", "26601204", "30343899", "39014081"]
-            needs_review: true
       - slot: ARID
         members: [ARID2]
         pmids: ["15985610", "30343899"]
@@ -156,7 +156,8 @@ complexes:
     species: human
     structures:
       - {pdb: 9WBZ, method: cryo-EM, pmid: "41402274", note: "base module not resolved; unmodelled members shown as chips"}
-    defining_pmids: ["29374058", "30343899", "30397315", "30431433", "31015438"]
+      - {pdb: 21VV, method: cryo-EM, pmid: "42377898", note: "nucleosome-bound; second, independent ncBAF structure (not used for the 3D model)"}
+    defining_pmids: ["29374058", "30343899", "30397315", "30431433", "31015438", "30510198"]
     slots:
       - slot: ATPase
         members: [SMARCA4, SMARCA2]
@@ -173,7 +174,7 @@ complexes:
         contested: true
         contested_notes:
           - member: SMARCC2
-            claim: "ncBAF is described as SMARCC1-containing (Malone 2024 Table 1: SMARCC1 +, SMARCC2 –); SMARCC2 is listed as absent, but whether it is incorporated has differed between purifications."
+            claim: "ncBAF is described as SMARCC1-containing (Mashtalir 2018 Fig. 6D-E: SMARCC1 but no SMARCC2 in GLTSCR1L-bound ncBAF; Malone 2024 Table 1: SMARCC1 +, SMARCC2 –); SMARCC2 is listed as absent, but whether it is incorporated has differed between purifications."
             pmids: ["29374058", "30343899", "39014081"]
       - slot: SMARCD
         members: [SMARCD1]
@@ -181,7 +182,7 @@ complexes:
         contested: true
         contested_notes:
           - member: [SMARCD2, SMARCD3]
-            claim: "SMARCD1 is the SMARCD paralog reported in ncBAF (Malone 2024 Table 1: SMARCD2/SMARCD3 –; Schick 2019: a SMARCD1-BRD9-BICRA module, lost in SMARCD1 knockout cells); SMARCD2/SMARCD3 are listed as absent."
+            claim: "SMARCD1 is the SMARCD paralog reported in ncBAF (Mashtalir 2018 Fig. 6D-E: SMARCD1 only in GLTSCR1L-bound ncBAF; Malone 2024 Table 1: SMARCD2/SMARCD3 –; Schick 2019: a SMARCD1-BRD9-BICRA module, lost in SMARCD1 knockout cells); SMARCD2/SMARCD3 are listed as absent."
             pmids: ["30343899", "30397315", "31427792", "39014081"]
       - slot: SS18
         members: [SS18, SS18L1]
