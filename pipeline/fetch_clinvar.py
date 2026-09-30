@@ -1,6 +1,10 @@
 """ClinVar via NCBI E-utilities (public domain).
 
-* esearch  `<GENE>[gene] AND single_gene[prop]` -> VariationIDs
+* esearch  `<GENE>[gene]`                        -> VariationIDs
+  (not `single_gene[prop]`: ClinVar counts overlapping NCBI regulatory-element
+  records (LOC...) as genes, which silently dropped e.g. ~450 ARID1B exon-1
+  variants. Multi-gene CNVs are excluded downstream instead: build.py keeps
+  only SPDI alleles <= MAX_INDEL that project onto the canonical protein.)
 * esummary (batched POST)                        -> classification, stars, conditions, SPDI
 * var_citations.txt, stream-filtered to our VariationIDs (the raw 250 MB file
   is never written to disk)                     -> which variants carry citations
@@ -41,7 +45,7 @@ def release() -> dict:
 
 
 def search_ids(gene: str) -> list[str]:
-    term = f"{gene}[gene] AND single_gene[prop]"
+    term = f"{gene}[gene]"
     d = fetch(E + "esearch.fcgi", params={"db": "clinvar", "term": term, "retmax": 100000,
                                           "retmode": "json", **TOOL}, cache_dir="clinvar")
     return d["esearchresult"]["idlist"]
@@ -181,5 +185,5 @@ def scv_citations(variation_ids: list[str]) -> dict[str, list[dict]]:
 
 def fetch_gene(gene: str) -> list[dict]:
     ids = search_ids(gene)
-    recs = [r for r in summaries(ids) if r["genes"] == [gene]]
+    recs = [r for r in summaries(ids) if gene in r["genes"]]
     return recs
