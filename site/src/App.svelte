@@ -3,7 +3,7 @@
   // and the complex view, so moving between them (and into a subunit) is a
   // continuous camera move, never a page swap. The side panel cross-fades.
   //
-  // Routes: #/ (select) · #/cBAF · #/cBAF/SMARCA4 · #/gene/SMARCA4[/p.Arg1192His] · #/mouse
+  // Routes: #/ (select) · #/cBAF · #/cBAF/SMARCA4 · #/gene/SMARCA4[/p.Arg1192His]
   // Keys:   ←/→ choose complex · Enter select · Esc back out one level
   import { fly, fade } from 'svelte/transition';
   import { backOut, cubicOut } from 'svelte/easing';
@@ -84,7 +84,6 @@
   const view = $derived.by(() => {
     const [a, b, c] = route.parts;
     if (!a) return { kind: 'select' };
-    if (a === 'mouse') return { kind: 'mouse' };
     if (a === 'compare') return { kind: 'compare' };
     if (a === 'gene' && b) return { kind: 'gene', sym: b, pchange: c ?? null };
     if (TABS.includes(a)) return { kind: 'complex', id: a, sym: b ?? null, pchange: (b && c) || null };
@@ -494,10 +493,6 @@
           <span class="muted">{MODEL_INDEX[id].pdb}</span>
         </a>
       {/each}
-      <a class="pick mouse" href={href('mouse')}>
-        <span class="pick-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-        <b>esBAF · npBAF · nBAF</b><span class="muted">mouse-defined</span>
-      </a>
     </div>
     <div class="go-row">
       <a class="btn go" href={href(pickId)}>Select {pickId} <span aria-hidden="true">▶</span></a>
@@ -523,8 +518,6 @@
     {/each}
     <a href={href('compare')} class="tab" aria-current={view.kind === 'compare' ? 'page' : undefined}
        title="cBAF, PBAF and ncBAF side by side">Compare</a>
-    <a href={href('mouse')} class="tab mouse" aria-current={view.kind === 'mouse' ? 'page' : undefined}
-       title="Characterized in mouse; inferred in human">esBAF · npBAF · nBAF</a>
   </nav>
   <button class="btn theme" onclick={() => (theme = THEMES[(THEMES.indexOf(theme) + 1) % 3])}
           aria-label="Colour theme: {theme}. Change.">
@@ -624,26 +617,6 @@
     </div>
   {:else if view.kind === 'compare'}
     <Compare {comp} {cartoons} modelIndex={MODEL_INDEX} ids={TABS} onopen={(id, s) => go(`${id}/${s}`)} />
-  {:else if view.kind === 'mouse'}
-    <div class="narrow">
-      <section class="card panel">
-        <header class="panel-head">
-          <p class="eyebrow">{comp.mouse_only.flag}</p>
-          <h2>Developmental BAF assemblies</h2>
-          <p class="muted">These complexes were defined biochemically in mouse cells. Their human counterparts are inferred, not directly characterized.</p>
-        </header>
-        <ul class="mouse-list">
-          {#each Object.entries(comp.mouse_only.complexes) as [id, m] (id)}
-            <li>
-              <h3>{id} <span class="muted">· {m.name}</span>
-                {#if m.needs_review}<span class="chip review">needs review</span>{/if}</h3>
-              <p>{m.defining_features}</p>
-              <p>{@render cite(m.pmids)}</p>
-            </li>
-          {/each}
-        </ul>
-      </section>
-    </div>
   {:else if view.kind === 'missing'}
     <div class="card panel narrow"><p>No page at <code>#/{view.path}</code>. <a href={href('cBAF')}>Go to cBAF</a>.</p></div>
   {/if}
@@ -680,7 +653,6 @@
   .tab { padding: 6px 12px; border-radius: 999px; color: var(--ink-2); font-weight: 500; font-size: 14px; }
   .tab:hover { background: var(--bg-2); text-decoration: none; }
   .tab[aria-current='page'] { background: var(--ink); color: var(--bg); }
-  .tab.mouse { font-style: italic; }
   @media (max-width: 640px) {
     .top { gap: 10px 14px; }
     nav { order: 3; flex: 1 0 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -4px; }
@@ -747,7 +719,6 @@
   .pick.on { border-color: var(--accent); transform: translateY(-3px) scale(1.03); box-shadow: 0 10px 26px color-mix(in srgb, var(--accent) 25%, transparent); background: var(--surface); }
   .pick b { font-size: 15px; }
   .pick span { font-size: 12px; }
-  .pick.mouse b { font-style: italic; font-weight: 600; font-size: 13.5px; }
   .pick-dots { display: flex; gap: 3px; margin-bottom: 4px; }
   .pick-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--line-2); }
   .go-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 18px; }
@@ -846,9 +817,6 @@
 
 
 
-  .mouse-list { list-style: none; padding: 0; margin: 0; }
-  .mouse-list li { padding: 14px 0; border-top: 1px solid var(--line); }
-  .mouse-list p { margin: 6px 0 0; font-size: 14px; }
 
   .error { max-width: 560px; margin: 40px auto; }
 

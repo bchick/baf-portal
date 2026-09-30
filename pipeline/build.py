@@ -337,7 +337,7 @@ def uniprot_isoform_remap(acc: str, canonical: str, f: dict) -> tuple[str, dict 
 
 def complexes_json(comp: dict) -> dict:
     # YAML parses an unquoted `version: 2026-09-29` as datetime.date.
-    return {"version": str(comp["version"]),"complexes": comp["complexes"], "mouse_only": comp["mouse_only"],
+    return {"version": str(comp["version"]),"complexes": comp["complexes"],
             "subunits": {s["symbol"]: s for s in comp["subunits"]}, "references": comp["references"]}
 
 

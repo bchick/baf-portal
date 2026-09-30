@@ -49,10 +49,10 @@ def test_verify_catches_contested_without_notes(comp):
 
 def test_needs_review_items_are_listed(comp):
     flagged = copy.deepcopy(comp)
-    flagged["mouse_only"]["complexes"]["esBAF"]["needs_review"] = True
+    flagged["complexes"]["PBAF"]["slots"][0]["contested_notes"][0]["needs_review"] = True
     f = vc.Findings()
     vc.check_internal(flagged, f)
-    assert any("mouse_only" in r and "esBAF" in r for r in f.review)
+    assert any("PBAF" in r and "contested_notes" in r for r in f.review)
 
 
 @pytest.mark.parametrize("text,want", [

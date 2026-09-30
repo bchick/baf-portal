@@ -17,7 +17,6 @@ const ROUTES = [
   ['arid1b-dark', '#/cBAF/ARID1B', 1400, 'dark'],
   ['pbaf', '#/PBAF', 1400, 'light'],
   ['variant', '#/gene/SMARCA4/p.Arg1192His', 1400, 'light'],
-  ['mouse', '#/mouse', 1400, 'light'],
   ['compare', '#/compare', 1440, 'light'],
   ['phone-compare', '#/compare', 400, 'light'],
   ['phone-smarcb1', '#/cBAF/SMARCB1', 400, 'light'],
