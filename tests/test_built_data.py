@@ -67,6 +67,21 @@ def test_citations_are_well_formed(built):
             assert not higher & {c["pmid"] for c in v["cit"] if c["t"] == 3}, v["k"]
 
 
+def test_somatic_citations_belong_to_tcga_only_variants(built):
+    for gene in built.genes():
+        g = built.gene(gene)
+        germ = {v["k"] for v in g["variants"]}
+        tcga = {v["k"] for v in built.tcga(gene)["variants"]}
+        for k, cits in g.get("somatic_cit", {}).items():
+            assert k in tcga and k not in germ, (gene, k)
+            assert cits and all(c["t"] == 3 and c["src"] == "LitVar2" and c["basis"] == "protein (ref-checked)"
+                                for c in cits), (gene, k)
+            assert len({c["pmid"] for c in cits}) == len(cits), (gene, k)
+        refs = built.refs(gene)
+        cited = {c["pmid"] for cs in g.get("somatic_cit", {}).values() for c in cs}
+        assert len(cited - set(refs)) <= 0.01 * max(1, len(cited))
+
+
 def test_every_cited_pmid_is_resolved(built):
     for gene in built.genes():
         refs = built.refs(gene)

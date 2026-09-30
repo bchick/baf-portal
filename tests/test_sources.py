@@ -165,3 +165,14 @@ def test_refresh_is_per_cache_directory(monkeypatch):
         assert refreshing("vep")
     monkeypatch.setenv("BAF_REFRESH", "0")
     assert not refreshing("clinvar")
+
+
+def test_litvar_tcga_only_variant_matches_by_protein_only(stats):
+    """TCGA calls carry no rsID: only a ref-checked protein string can match them,
+    and an rsID record for a germline allele must not leak onto them."""
+    germ = [_v("g", 2, "p.Arg2His", rs="111")]
+    tcga_only = [{"k": "t", "pos": 7, "p": "p.Arg7Gln", "mane": "p.Arg7Gln", "rs": None}]
+    out = litvar.match([_rec("p", [3], hgvs_prot="p.R7Q"), _rec("r", [4], rsid="rs111", hgvs_prot="p.R2H")],
+                       germ + tcga_only, SEQ, stats)
+    assert [c["pmid"] for c in out["t"]] == ["3"] and out["t"][0]["basis"] == "protein (ref-checked)"
+    assert [c["pmid"] for c in out["g"]] == ["4"]

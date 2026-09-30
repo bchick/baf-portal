@@ -214,15 +214,26 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list, lit_recs: l
     pmids.update(e["pmid"] for e in civ_gene_level)
 
     # LitVar2: text-mined mentions -> tier 3, minus papers already cited above.
-    for k, hits in litvar.match(lit_recs, list(variants.values()), entry["sequence"], stats).items():
-        v = variants[k]
-        higher = {c["pmid"] for c in v["cit"]}
+    # Matched in one pass over germline variants and TCGA-only variants (seen
+    # in TCGA but not in ClinVar/UniProt), so the ambiguity rules see both.
+    # TCGA calls carry no rsID, so they can only match ref-checked protein
+    # strings; their citations go to `somatic_cit` (keyed by TCGA variant key).
+    tcga_only = [{"k": t["k"], "pos": t["pos"], "p": t["p"], "mane": t["mane"], "rs": None}
+                 for t in tcga_by_key.values() if t["k"] not in variants and t["p"]]
+    somatic_cit: dict[str, list[dict]] = {}
+    for k, hits in litvar.match(lit_recs, list(variants.values()) + tcga_only, entry["sequence"], stats).items():
+        target = variants[k]["cit"] if k in variants else somatic_cit.setdefault(k, [])
+        higher = {c["pmid"] for c in target}
         for h in hits:
             if h["pmid"] in higher:
                 stats["litvar:already_higher_tier"] += 1
                 continue
+            higher.add(h["pmid"])
             pmids.add(h["pmid"])
-            v["cit"].append({"t": 3, "pmid": h["pmid"], "src": "LitVar2", "basis": h["basis"], "id": h["id"]})
+            target.append({"t": 3, "pmid": h["pmid"], "src": "LitVar2", "basis": h["basis"], "id": h["id"]})
+    stats["litvar:tcga_only_variants_cited"] = len(somatic_cit)
+    for cits in somatic_cit.values():
+        cits.sort(key=lambda c: c["pmid"])
 
     for v in variants.values():  # de-duplicate citations per (tier, pmid, submitter / evidence item)
         seen, keep = set(), []
@@ -263,6 +274,7 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list, lit_recs: l
         "features": [f for f in entry["features"] if f["type"] != "Natural variant"],
         "domains": domains,
         "civic": civ_gene_level,
+        "somatic_cit": dict(sorted(somatic_cit.items())),   # tier-3 citations for TCGA-only variants
         "variants": sorted(variants.values(), key=lambda v: (v["pos"], v["k"])),
         "stats": dict(sorted(stats.items())),
     }

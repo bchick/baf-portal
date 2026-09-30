@@ -43,7 +43,9 @@
   // ClinVar placeholder traits carry no information
   const conditions = $derived((cv?.germ?.cond ?? []).filter((c) => !/^not (provided|specified)$/i.test(c.name ?? '')));
 
-  const cites = $derived(germ?.cit ?? variant.cit ?? []);
+  // germline (ClinVar/UniProt) variants carry their citations; TCGA-only
+  // variants get text-mined ones from the gene's somatic_cit map
+  const cites = $derived(germ?.cit ?? (som ? gene.somatic_cit?.[som.k] : variant.cit) ?? []);
   // Classification guidelines / methods papers (e.g. ACMG-AMP 2015) are cited by
   // submitters as the framework they used, not as evidence about the variant.
   // Detected from the resolved title; listed last and labelled.
@@ -261,7 +263,8 @@
 
     <div class="tier">
       {@render tierHead(3, 'Text-mined', 'Tier 3', live(t3),
-                        'Automated mentions (LitVar2), not reviewed. Papers already cited in a higher tier are omitted.')}
+                        'Automated mentions (LitVar2), not reviewed. Papers already cited in a higher tier are omitted.'
+                        + (germ ? '' : ' Seen only in TCGA (no rsID), so matched on reference-checked protein names alone.'))}
       {#if open[3]}
         <div transition:slide={{ duration: dur, easing: cubicOut }}>
           {#if t3.length}
