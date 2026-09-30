@@ -1,4 +1,6 @@
 <script>
+  import { tip } from './tip.js';
+  import { cancerName } from './glossary.js';
   // One variant: identity (all notations), classification, cancer frequency,
   // and evidence as tiered citations (plan: "graded citations"):
   //   1 Curated          UniProt ECO:0000269, ClinVar expert panel / practice guideline
@@ -178,7 +180,7 @@
         <span class="muted num">({pct(som.n_pat / tcga.n)} of {tcga.n.toLocaleString()} profiled)</span>
         <div class="studies">
           {#each cohort.studies as s (s.id)}
-            <span class="chip" title="{s.name}: {s.n} of {s.cohortN} profiled patients">{s.cancer_type?.toUpperCase() ?? s.id} ×{s.n}</span>
+            <span class="chip has-tip" use:tip={`${cancerName(s)}: ${s.n} of ${s.cohortN} profiled patients`}>{s.cancer_type?.toUpperCase() ?? s.id} ×{s.n}</span>
           {/each}
         </div>
       </dd>

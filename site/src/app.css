@@ -101,3 +101,13 @@ button { font: inherit; color: inherit; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; animation: none !important; scroll-behavior: auto !important; }
 }
+
+/* instant tooltip (lib/tip.js) */
+.tip-bubble {
+  position: fixed; z-index: 60; max-width: min(320px, calc(100vw - 16px)); padding: 6px 10px;
+  border-radius: 8px; background: var(--ink); color: var(--bg); font: 500 12.5px/1.35 var(--font);
+  box-shadow: 0 4px 14px rgb(0 0 0 / 22%); pointer-events: none;
+  opacity: 0; transform: translateY(3px); transition: opacity 90ms, transform 90ms;
+}
+.tip-bubble.on { opacity: 1; transform: none; }
+[aria-describedby='tip-bubble'], .has-tip { text-decoration: underline dotted color-mix(in srgb, currentColor 45%, transparent); text-underline-offset: 3px; cursor: help; }

@@ -21,6 +21,9 @@
   import { route, href, go } from './lib/router.svelte.js';
   import * as data from './lib/data.js';
   import { colorOf, classKey, CLASS_ORDER, CLASS_COLOR } from './lib/colors.js';
+  import { tip } from './lib/tip.js';
+  import { CLINVAR_TIP, cancerName } from './lib/glossary.js';
+  import CitationsSheet from './lib/CitationsSheet.svelte';
 
   // 3D models: the small index (structure, chain symbols) and cBAF's beads load
   // up front; PBAF / ncBAF beads are separate chunks prefetched once idle.
@@ -137,6 +140,51 @@
                     current: typeof current === 'function' ? current() : current });
   }
   const refList = (pmids) => [...new Set(pmids ?? [])].map((p) => `PMID ${p}`).join(', ');
+
+  // ---- citations sheet: every source behind one subunit page ---------------------
+  let citeFor = $state(null);          // {s, c} while the sheet is open
+  const uniq = (a) => [...new Set(a.filter(Boolean))];
+  function citationGroups(s, c) {
+    const groups = [];
+    const sl = c && slotFor(c, s.symbol);
+    if (sl) {
+      const notes = (sl.contested_notes ?? []).flatMap((n) => n.pmids);
+      groups.push({ title: `Membership in ${c.id}`, note: `${s.symbol} fills the ${sl.slot} slot`
+          + (sl.members.length > 1 ? ` (with ${sl.members.filter((m) => m !== s.symbol).join(', ')})` : '') + '.',
+        items: uniq([...sl.pmids, ...notes]).map((pmid) => ({ pmid })) });
+    }
+    if (c) {
+      const m = models[c.id], idx = MODEL_INDEX[c.id];
+      const own = m?.chains.find((ch) => ch.symbol === s.symbol);
+      const items = [];
+      if (own?.source) items.push({ pmid: own.source.pmid, label: `${s.symbol} placed from PDB ${own.source.pdb} by superposition` });
+      else if (own || idx?.chains.some((ch) => ch.symbol === s.symbol)) items.push({ pmid: idx.pmid, label: `3D model: PDB ${idx.pdb}` });
+      groups.push({ title: 'Structure', note: items.length ? '' : `${s.symbol} is not resolved in the ${c.id} structure (PDB ${idx?.pdb}).`, items });
+    }
+    if (gene?.civic?.length) groups.push({ title: 'Clinical evidence (CIViC)',
+      items: Object.values(gene.civic.reduce((by, e) => {
+        (by[e.pmid] ??= { pmid: e.pmid, eids: [] }).eids.push(`EID${e.eid} ${e.civic_variant}`); return by;
+      }, {})).map(({ pmid, eids }) => ({ pmid, label: eids.join('; ') })) });
+    const src = manifest?.sources ?? {};
+    const data = [];
+    data.push({ text: `UniProtKB ${s.uniprot}`, url: `https://www.uniprot.org/uniprotkb/${s.uniprot}`,
+      detail: `release ${src.uniprot?.release ?? ''}, ${src.uniprot?.license ?? ''}; sequence, domains, UniProt variants` });
+    if (src.interpro) data.push({ text: 'InterPro / Pfam', url: `https://www.ebi.ac.uk/interpro/protein/UniProt/${s.uniprot}/`,
+      detail: `InterPro ${src.interpro.interpro?.version ?? ''}, Pfam ${src.interpro.pfam?.version ?? ''}; domains UniProt does not annotate` });
+    if (DATA_GENES.includes(s.symbol)) {
+      data.push({ text: 'NCBI ClinVar', url: `https://www.ncbi.nlm.nih.gov/clinvar/?term=${s.symbol}%5Bgene%5D`,
+        detail: `updated ${src.clinvar?.last_update ?? ''}; germline classifications` });
+      if (tcga) data.push({ text: 'TCGA PanCancer Atlas via cBioPortal', url: 'https://www.cbioportal.org/',
+        detail: `cBioPortal ${src.cbioportal?.portal_version ?? ''}, ${src.cbioportal?.license ?? ''}; somatic mutations`,
+        pmids: uniq(Object.values(tcga.per_study).flatMap((st) => st.pmids ?? [])) });
+      if (src.litvar2) data.push({ text: 'NCBI LitVar2', url: 'https://www.ncbi.nlm.nih.gov/research/litvar2/',
+        detail: 'variant-to-paper links (per-variant citations are listed on each variant)' });
+      if (src.ensembl_vep) data.push({ text: 'Ensembl VEP', url: 'https://www.ensembl.org/vep',
+        detail: `release ${src.ensembl_vep.software}; variant consequences and MANE numbering` });
+    }
+    groups.push({ title: 'Data sources', items: data });
+    return groups;
+  }
 
   function onkey(e) {
     if (suggest.open) { if (e.key === 'Escape') closeSuggest(); return; }
@@ -314,6 +362,7 @@
   <section class="card panel">
     <header class="panel-head">
       <div class="head-suggest">
+        <button class="btn cite-btn" onclick={() => (citeFor = { s, c })}>Citations</button>
         <SuggestButton ctx={sctx(s.symbol, 'Subunit identity (name, aliases, identifiers)',
           () => [`Symbol: ${s.symbol}${s.common_name ? ` (${s.common_name})` : ''}`, `Name: ${s.name}`,
                  `UniProt: ${s.uniprot} (${s.uniprot_length} aa)`, `HGNC: ${s.hgnc_id}`,
@@ -348,7 +397,6 @@
     {#if sl && sl.members.length > 1}
       <p class="paralogs">Shares the <b>{sl.slot}</b> slot with
         {#each sl.members.filter((m) => m !== s.symbol) as m, i}{#if i}, {/if}<a href={href(c.id, m)}>{m}</a>{/each}
-        {@render cite(sl.pmids)}
         <SuggestButton compact ctx={sctx(`${s.symbol} in ${c.id}`, `Complex membership · ${sl.slot} slot`,
           () => `Slot ${sl.slot} in ${c.id}: ${sl.members.join(', ')}\nSources: ${refList(sl.pmids)}`)} /></p>
     {/if}
@@ -403,7 +451,7 @@
       </div>
       <ul class="stack-legend">
         {#each CLASS_ORDER as k}
-          <li><span class="dot" style:background={CLASS_COLOR[k]}></span>{k} <span class="num muted">{classCounts[k]}</span></li>
+          <li><span class="dot" style:background={CLASS_COLOR[k]}></span><span class="has-tip" use:tip={CLINVAR_TIP[k]}>{k}</span> <span class="num muted">{classCounts[k]}</span></li>
         {/each}
       </ul>
 
@@ -423,8 +471,8 @@
           <tbody>
             {#each topStudies as st (st.cancer_type)}
               {@const [l2, h2] = wilson(st.k, st.n)}
-              <tr title="{st.name}: 95% CI {pct(l2)}–{pct(h2)}">
-                <td class="ct">{st.cancer_type.toUpperCase()}</td>
+              <tr>
+                <td class="ct"><span class="has-tip" use:tip={`${cancerName(st)} · ${st.k} of ${st.n} patients, 95% CI ${pct(l2)}–${pct(h2)}`}>{st.cancer_type.toUpperCase()}</span></td>
                 <td class="bar"><span style:width={pct(Math.min(1, st.k / st.n / 0.25))}></span></td>
                 <td class="num">{pct(st.k / st.n)}</td>
                 <td class="num muted">{st.k}/{st.n}</td>
@@ -452,7 +500,7 @@
                 <span class="muted">· {e.type} · {e.significance}</span>
               </div>
               <div class="civic-dis">{e.disease}{#if e.therapies}{' · '}<i>{e.therapies}</i>{/if}</div>
-              <div class="small">{@render cite([e.pmid])} · <a href={e.url} target="_blank" rel="noopener">EID{e.eid}</a></div>
+              <div class="small"><a href={e.url} target="_blank" rel="noopener">EID{e.eid}</a></div>
             </li>
           {/each}
         </ul>
@@ -504,6 +552,10 @@
 <svelte:window onkeydown={onkey} />
 <MorphOverlay bind:this={overlay} />
 <SuggestSheet />
+{#if citeFor}
+  <CitationsSheet subject="{citeFor.s.symbol}{citeFor.c ? ` in ${citeFor.c.id}` : ''}" groups={citationGroups(citeFor.s, citeFor.c)}
+                  {refs} onclose={() => (citeFor = null)} />
+{/if}
 
 <header class="top">
   <a class="brand" href="#/">
@@ -742,7 +794,8 @@
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
   .panel-head { margin-bottom: 14px; position: relative; }
-  .head-suggest { position: absolute; top: -6px; right: -8px; }
+  .head-suggest { position: absolute; top: -6px; right: -8px; display: flex; gap: 6px; align-items: center; }
+  .cite-btn { font-size: 12.5px; padding: 4px 10px; }
   .sub-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 22px 0 8px; }
   .sub-row .sub { margin: 0; }
   .grow { flex: 1; }

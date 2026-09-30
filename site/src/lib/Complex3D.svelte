@@ -524,11 +524,24 @@
 
   // ---- render loop ----------------------------------------------------------------
   let raf = 0, last = 0;
+  // Adaptive resolution: if animated frames keep running slow (integrated GPUs
+  // on high-DPI screens), drop to 1 device pixel per CSS pixel for the session.
+  let slowEma = 0, slowN = 0, lowPower = false;
+  function watchFrameTime(ms) {
+    if (lowPower || PR <= 1) return;
+    slowEma = slowN ? slowEma * 0.9 + ms * 0.1 : ms; slowN++;
+    if (slowN > 30 && slowEma > 24) {
+      lowPower = true; resize();
+      console.info(`3D view: frames averaged ${slowEma.toFixed(0)} ms, rendering at 1x resolution`);
+    }
+  }
   function kick() { if (!raf && gl) { last = performance.now(); raf = requestAnimationFrame(frame); } }
 
   function frame(now) {
     raf = 0;
-    const dt = Math.min(1 / 30, (now - last) / 1000); last = now;
+    const raw = now - last;
+    const dt = Math.min(1 / 30, raw / 1000); last = now;
+    if (raw > 0 && raw < 250) watchFrameTime(raw);
     if (mode === 'select' && !reduce && !drag) S.yaw.t += SPIN * dt;
     for (const s of Object.values(S)) step(s, dt);
     if (next) {
@@ -641,17 +654,19 @@
 
   const activeSet = $derived(new Set(selected ? slotMates(selected) : []));
 
+  function resize() {
+    const r = wrap.getBoundingClientRect();
+    W = r.width; H = r.height;
+    PR = lowPower ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+    for (const c of [cvs, ink]) { c.width = Math.round(W * PR); c.height = Math.round(H * PR); }
+    kick();
+  }
+
   onMount(() => {
     try { initGL(); } catch (e) { console.warn(e); glFailed = true; onglfail(); return; }
     inkCtx = ink.getContext('2d');
     readPalette();
-    const ro = new ResizeObserver(() => {
-      const r = wrap.getBoundingClientRect();
-      W = r.width; H = r.height;
-      PR = Math.min(window.devicePixelRatio || 1, 2);
-      for (const c of [cvs, ink]) { c.width = Math.round(W * PR); c.height = Math.round(H * PR); }
-      kick();
-    });
+    const ro = new ResizeObserver(resize);
     ro.observe(wrap);
     const mo = new MutationObserver(readPalette);
     mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });

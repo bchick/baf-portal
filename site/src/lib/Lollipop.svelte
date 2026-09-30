@@ -1,4 +1,6 @@
 <script>
+  import { tip as hoverTip } from './tip.js';
+  import { CLINVAR_TIP, SOM_TIP } from './glossary.js';
   // Mirror lollipop on UniProt canonical coordinates:
   //   up    TCGA PanCancer somatic mutations, height by patients at the residue
   //   mid   backbone: thick where folded, thin where UniProt calls it disordered;
@@ -270,17 +272,17 @@
 <div class="lolli" bind:clientWidth={width}>
   <div class="toolbar">
     <div class="chips" role="group" aria-label="Somatic classes">
-      <span class="grp">TCGA</span>
+      <span class="grp has-tip" use:hoverTip={'Somatic mutations in tumours from the TCGA PanCancer Atlas (via cBioPortal)'}>TCGA</span>
       {#each SOM as k}
-        <button class="chip" class:off={!on.has(k)} onclick={() => toggle(k)} aria-pressed={on.has(k)}>
+        <button class="chip" class:off={!on.has(k)} onclick={() => toggle(k)} aria-pressed={on.has(k)} use:hoverTip={SOM_TIP[k]}>
           <i style:background={SOM_COLOR[k]}></i>{SOM_LABEL[k]} <span class="num">{counts[k]}</span>
         </button>
       {/each}
     </div>
     <div class="chips" role="group" aria-label="Germline classes">
-      <span class="grp">ClinVar</span>
+      <span class="grp has-tip" use:hoverTip={'Germline variants and their classification in NCBI ClinVar'}>ClinVar</span>
       {#each CLASS_ORDER as k}
-        <button class="chip" class:off={!on.has(k)} onclick={() => toggle(k)} aria-pressed={on.has(k)}>
+        <button class="chip" class:off={!on.has(k)} onclick={() => toggle(k)} aria-pressed={on.has(k)} use:hoverTip={CLINVAR_TIP[k]}>
           <i style:background={CLASS_COLOR[k]}></i>{k} <span class="num">{counts[k]}</span>
         </button>
       {/each}
