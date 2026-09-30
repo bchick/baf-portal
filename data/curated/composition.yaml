@@ -35,7 +35,8 @@ references:
   "33053319": Mashtalir 2020 Cell — structural model of endogenous human BAF
   "35477757": Yuan 2022 Nature — cryo-EM of nucleosome-bound human PBAF
   "36496390": Wang 2022 Nat Commun — cryo-EM of nucleosome-bound human PBAF
-  "42377898": Xu 2026 J Mol Cell Biol — ncBAF assembly and nucleosome recognition (candidate for 9WBZ; needs_review)
+  "41402274": Chen 2025 Cell Discov — ncBAF recognizes the nucleosome through BCL7A (primary citation of PDB 9WBZ; verified against RCSB 2026-09-29)
+  "42377898": Xu 2026 J Mol Cell Biol — structure of ncBAF assembly and nucleosome recognition (separate paper; not the 9WBZ citation)
   "17640523": Lessard 2007 Neuron — npBAF to nBAF switch (mouse)
   "19279220": Ho 2009 PNAS — esBAF (mouse ES cells)
   "19561591": Yoo 2009 Nature — miRNA-mediated npBAF/nBAF switch (mouse/human neurons)
@@ -91,8 +92,8 @@ complexes:
     synonyms: [PBAF, SWI/SNF-B]
     species: human
     structures:
-      - {pdb: 7VDV, method: cryo-EM, pmid: "35477757", note: "nucleosome-bound; PDB-to-paper pairing needs_review"}
-      - {pdb: 7Y8R, method: cryo-EM, pmid: "36496390", note: "nucleosome-bound; PDB-to-paper pairing needs_review"}
+      - {pdb: 7VDV, method: cryo-EM, pmid: "35477757", note: "nucleosome-bound"}
+      - {pdb: 7Y8R, method: cryo-EM, pmid: "36496390", note: "nucleosome-bound"}
     defining_pmids: ["11078522", "30343899"]
     slots:
       - slot: ATPase
@@ -149,7 +150,7 @@ complexes:
     synonyms: [ncBAF, GBAF]
     species: human
     structures:
-      - {pdb: 9WBZ, method: cryo-EM, pmid: "42377898", note: "base module only partly resolved; drawn schematically. PDB-to-paper pairing needs_review"}
+      - {pdb: 9WBZ, method: cryo-EM, pmid: "41402274", note: "base module not resolved; unmodelled members shown as chips"}
     defining_pmids: ["29374058", "30343899", "30397315"]
     slots:
       - slot: ATPase

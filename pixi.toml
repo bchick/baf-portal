@@ -4,6 +4,7 @@
 #   pixi run build-data     # fetch -> project -> validate -> emit site/public/data/v<date>/
 #   pixi run layout         # 6LTJ -> site/src/lib/layouts/cBAF.json
 #   pixi run beads          # 6LTJ -> site/src/lib/models/cBAF.json (3D bead model)
+#   pixi run verify         # re-check composition.yaml PMIDs/UniProt/HGNC/PDB live
 #   pixi run test           # pytest (network-free where cached)
 
 [workspace]
@@ -27,4 +28,5 @@ pytest = "*"
 build-data = "python -m pipeline.build"
 layout = "python -m pipeline.cartoon_layout"
 beads = "python -m pipeline.bead_model"
+verify = "python -m pipeline.verify_composition"
 test = "pytest -q tests"

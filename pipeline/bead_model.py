@@ -22,7 +22,7 @@ from .common import CURATED, ROOT, write_json
 
 LAYOUT = ROOT / "site" / "src" / "lib" / "layouts" / "cBAF.json"
 OUT = ROOT / "site" / "src" / "lib" / "models"
-MODELS = {"cBAF": ("6LTJ", "32001526"), "PBAF": ("7VDV", "35477757"), "ncBAF": ("9WBZ", "42377898")}
+MODELS = {"cBAF": ("6LTJ", "32001526"), "PBAF": ("7VDV", "35477757"), "ncBAF": ("9WBZ", "41402274")}
 REFERENCE = "cBAF"
 ANCHORS = ("H3", "H4")   # histone families used for superposition
 TIE = 1.5                # A: histone fits this close to the best count as equivalent
