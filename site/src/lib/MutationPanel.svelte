@@ -328,7 +328,8 @@
   h3 { font-size: 21px; margin: 2px 0 0; letter-spacing: -0.01em; }
   .aliases { margin: 2px 0 0; font-size: 13px; color: var(--ink-2); }
   .head-actions { display: flex; align-items: flex-start; gap: 4px; }
-  .close { font-size: 22px; line-height: 1; color: var(--ink-3); padding: 0 4px; align-self: start; }
+  .close { display: inline-grid; place-items: center; min-width: 28px; min-height: 28px;
+    font-size: 22px; line-height: 1; color: var(--ink-3); align-self: start; }
   .close:hover { color: var(--ink); text-decoration: none; }
 
   .class-strip { padding-top: 10px; padding-bottom: 10px; }
@@ -393,7 +394,8 @@
   .src .stars { font-size: 10.5px; }
   .empty, .pending { font-size: 12.5px; color: var(--ink-3); margin: 0 0 10px; }
   .pending { font-style: italic; }
-  .more { all: unset; cursor: pointer; font-size: 12.5px; color: var(--accent); margin: 0 0 10px; display: inline-block; }
+  .more { all: unset; cursor: pointer; font-size: 12.5px; color: var(--accent); margin: 0 0 10px;
+    display: inline-flex; align-items: center; min-height: 24px; }
   .more:hover { text-decoration: underline; }
 
   .links { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; border-top: 1px solid var(--line); padding-top: 10px; padding-bottom: 12px; font-size: 13px; }

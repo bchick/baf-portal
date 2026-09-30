@@ -222,7 +222,8 @@ def export(name: str, pdb: str, pmid: str, chains: dict, ghosts: list, rmsd: flo
             sa = "n/a" if n["sifts_agreement"] is None else f"{n['sifts_agreement']:.0%}"
             print(f"  {pdb} {cid} {chains[cid]['symbol']}: {n['coverage']:.0%} of beads aligned; SIFTS agrees on {sa}")
     meta = {"complex": name, "pdb": pdb, "pmid": pmid,
-            "chains": [{"symbol": c["symbol"], "kind": c["kind"], "tier": c["tier"]} for c in out_chains],
+            "chains": [{"symbol": c["symbol"], "kind": c["kind"], "tier": c["tier"],
+                        **({"source_pdb": c["source"]["pdb"]} if "source" in c else {})} for c in out_chains],
             "ghosts": ghosts, "atoms": n_atoms}
     print(f"{name} {pdb}: {len(out_chains)} chains, {len(beads) // 4} beads, {n_atoms} atoms, "
           f"{sum(1 for r in res if r)} mapped to UniProt"

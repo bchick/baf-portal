@@ -21,7 +21,8 @@
 
 <style>
   .suggest {
-    display: inline-flex; align-items: center; gap: 5px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center; gap: 5px; flex: none;
+    min-height: 24px; min-width: 24px;
     font: 500 11.5px var(--font); color: var(--ink-3); background: transparent;
     border: 1px solid transparent; border-radius: 999px; padding: 2px 8px; cursor: pointer;
     transition: color 160ms, border-color 160ms, background 160ms, transform 220ms cubic-bezier(.3,1.6,.5,1);
@@ -31,5 +32,5 @@
     background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
   .suggest:active { transform: scale(0.94); }
-  .suggest.compact { padding: 3px; }
+  .suggest.compact { padding: 3px; }   /* min-width/height keeps the 24px target */
 </style>

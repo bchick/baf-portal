@@ -2,8 +2,8 @@
   // cBAF, PBAF and ncBAF side by side: cartoons at one shared scale (the
   // structures are superposed on the nucleosome, so position matches too),
   // linked hover across panels, and a composition matrix underneath saying,
-  // per complex, whether each subunit is resolved in the structure, a member
-  // not resolved, contested, or absent.
+  // per complex, whether each subunit is resolved in the structure, placed
+  // into it from another structure, a member not resolved, contested, or absent.
   import { fly } from 'svelte/transition';
   import { backOut } from 'svelte/easing';
   import Cartoon2D from './Cartoon2D.svelte';
@@ -31,12 +31,17 @@
     if (!sl) return { state: 'absent', label: `Not in ${id}` };
     const note = (sl.contested_notes ?? []).find((n) => n.member == null || n.member === sym
       || (Array.isArray(n.member) && n.member.includes(sym)));
-    const resolved = modelIndex[id].chains.some((ch) => ch.symbol === sym);
+    const ch = modelIndex[id].chains.find((x) => x.symbol === sym);
     const pdb = modelIndex[id].pdb;
+
+    const state = !ch ? 'member' : ch.tier === 'experimental' ? 'resolved' : ch.tier;
+    const where = state === 'resolved' ? `resolved in ${pdb}`
+      : state === 'placed' ? `not resolved in ${pdb}; placed from ${ch.source_pdb ?? 'another structure'}`
+      : state === 'predicted' ? `not resolved in ${pdb}; predicted model`
+      : `member, not resolved in ${pdb}`;
     return {
-      state: resolved ? 'resolved' : 'member', contested: !!note,
-      label: `${sym} in ${id}: ${resolved ? `resolved in ${pdb}` : `member, not resolved in ${pdb}`}`
-        + (note ? ` · contested: ${note.claim}` : ''),
+      state, contested: !!note,
+      label: `${sym} in ${id}: ${where}` + (note ? ` · contested: ${note.claim}` : ''),
     };
   }
 
@@ -130,6 +135,7 @@
     <p class="legend muted">
       <span><i class="mark resolved" style:--c="var(--accent)"></i> resolved in the structure</span>
       <span><i class="mark member" style:--c="var(--accent)"></i> member, not resolved</span>
+      <span><i class="mark placed" style:--c="var(--accent)"></i> placed from another structure</span>
       <span><i class="mark resolved" style:--c="var(--accent)"><span class="q">?</span></i> contested (hover for sources' disagreement)</span>
       <span>— not in the complex</span>
     </p>
@@ -164,8 +170,12 @@
   tr.hot td, tr.hot .sym { background: color-mix(in srgb, var(--accent) 9%, transparent); }
   .mark { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 5px;
     cursor: pointer; vertical-align: middle; transition: transform 180ms cubic-bezier(.3,1.6,.5,1); }
+  /* the drawn square stays 18px; the button's hit area meets the 24px minimum */
+  button.mark { width: 24px; height: 24px; background-clip: content-box; padding: 3px; }
   i.mark { cursor: default; width: 14px; height: 14px; margin-right: 4px; vertical-align: -2px; }
   .mark.resolved { background: var(--c); }
+  /* placed: filled, but hatched, matching the 3D view's treatment */
+  .mark.placed { background: repeating-linear-gradient(135deg, var(--c) 0 3px, transparent 3px 6px); border: 1px solid var(--c); }
   .mark.member { border: 2px dashed var(--c); }
   button.mark:hover, button.mark:focus-visible { transform: scale(1.2); }
   button.mark:focus-visible { outline: 2px solid var(--focus); }

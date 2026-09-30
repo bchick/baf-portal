@@ -814,7 +814,7 @@
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-right: 6px; }
 
   .cites { display: inline; }
-  .cite { font-size: 12.5px; white-space: nowrap; }
+  .cite { display: inline-flex; align-items: center; min-height: 24px; padding: 0 2px; font-size: 12.5px; white-space: nowrap; }
   .cite + .cite::before { content: ' · '; color: var(--ink-3); }
   .cite.retracted { color: var(--c-plp); text-decoration: line-through; }
 
@@ -822,7 +822,7 @@
   .slot { padding: 10px 0; border-top: 1px solid var(--line); }
   .slot-name { font-size: 12.5px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.05em; display: flex; gap: 8px; align-items: center; }
   .members { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 4px; }
-  .member { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); font-weight: 500; }
+  .member { display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 1px 2px; color: var(--ink); font-weight: 500; }
   .member.has-data::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
   .member.contested { font-style: italic; color: var(--ink-2); }
   .note { font-size: 13px; color: var(--ink-2); margin: 6px 0 0; }

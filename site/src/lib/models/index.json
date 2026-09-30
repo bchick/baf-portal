@@ -107,7 +107,8 @@
    {
     "symbol": "BCL7A",
     "kind": "subunit",
-    "tier": "placed"
+    "tier": "placed",
+    "source_pdb": "9WBZ"
    }
   ],
   "ghosts": [
@@ -254,7 +255,8 @@
    {
     "symbol": "BCL7A",
     "kind": "subunit",
-    "tier": "placed"
+    "tier": "placed",
+    "source_pdb": "9WBZ"
    }
   ],
   "ghosts": [],
