@@ -23,6 +23,9 @@
   --c-tcga: #5b4fc4;
   --c-uniprot: #0e7c86;
   --nuc-fill: #e9e4d8;
+  --histone: #e3d6bd;
+  --bead-ink: #1b1f24;
+  --dna: #b7a27e;
   --nuc-dna: #b9ae98;
   --shape-stroke: rgb(0 0 0 / 22%);
   --label-halo: rgb(255 255 255 / 85%);
@@ -36,7 +39,7 @@
     --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 35%);
     --c-plp: #ff6b5e; --c-conf: #f0a640; --c-vus: #9aa1ab; --c-blb: #5cc182; --c-other: #6b727b;
     --c-tcga: #9d93ff; --c-uniprot: #3cb4bd;
-    --nuc-fill: #2a2b2c; --nuc-dna: #6d6556; --shape-stroke: rgb(255 255 255 / 18%);
+    --nuc-fill: #2a2b2c; --nuc-dna: #6d6556; --histone: #5c5446; --dna: #8a7757; --bead-ink: #05070a; --shape-stroke: rgb(255 255 255 / 18%);
     --label-halo: rgb(17 20 24 / 80%);
     color-scheme: dark;
   }
@@ -48,7 +51,7 @@
   --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 35%);
   --c-plp: #ff6b5e; --c-conf: #f0a640; --c-vus: #9aa1ab; --c-blb: #5cc182; --c-other: #6b727b;
   --c-tcga: #9d93ff; --c-uniprot: #3cb4bd;
-  --nuc-fill: #2a2b2c; --nuc-dna: #6d6556; --shape-stroke: rgb(255 255 255 / 18%);
+  --nuc-fill: #2a2b2c; --nuc-dna: #6d6556; --histone: #5c5446; --dna: #8a7757; --bead-ink: #05070a; --shape-stroke: rgb(255 255 255 / 18%);
   --label-halo: rgb(17 20 24 / 80%);
   color-scheme: dark;
 }

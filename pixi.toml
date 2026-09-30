@@ -3,6 +3,7 @@
 #   pixi install
 #   pixi run build-data     # fetch -> project -> validate -> emit site/public/data/v<date>/
 #   pixi run layout         # 6LTJ -> site/src/lib/layouts/cBAF.json
+#   pixi run beads          # 6LTJ -> site/src/lib/models/cBAF.json (3D bead model)
 #   pixi run test           # pytest (network-free where cached)
 
 [workspace]
@@ -25,4 +26,5 @@ pytest = "*"
 [tasks]
 build-data = "python -m pipeline.build"
 layout = "python -m pipeline.cartoon_layout"
+beads = "python -m pipeline.bead_model"
 test = "pytest -q tests"
