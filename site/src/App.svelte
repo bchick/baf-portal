@@ -9,6 +9,8 @@
   import { backOut, cubicOut } from 'svelte/easing';
   import { Tween } from 'svelte/motion';
   import Complex3D from './lib/Complex3D.svelte';
+  import Lollipop from './lib/Lollipop.svelte';
+  import MutationPanel from './lib/MutationPanel.svelte';
   import { route, href, go } from './lib/router.svelte.js';
   import * as data from './lib/data.js';
   import { DATA_GENES } from './lib/data.js';
@@ -23,13 +25,15 @@
   const SHOWN = new Set(['missense', 'truncating', 'inframe', 'splice', 'stop_lost']);
 
   let comp = $state(null);
-  let refs = $state({});
+  let baseRefs = $state({});     // composition + cohort papers (refs.json)
+  let geneRefs = $state({});     // variant-level papers for the open gene (<GENE>.refs.json)
+  const refs = $derived({ ...baseRefs, ...geneRefs });
   let manifest = $state(null);
   let loadError = $state(null);
 
   $effect(() => {
     Promise.all([data.complexes(), data.refs(), data.manifest()])
-      .then(([c, r, m]) => { comp = c; refs = r; manifest = m; })
+      .then(([c, r, m]) => { comp = c; baseRefs = r; manifest = m; })
       .catch((e) => { loadError = e.message; });
   });
 
@@ -39,7 +43,7 @@
     if (!a) return { kind: 'select' };
     if (a === 'mouse') return { kind: 'mouse' };
     if (a === 'gene' && b) return { kind: 'gene', sym: b, pchange: c ?? null };
-    if (TABS.includes(a)) return { kind: 'complex', id: a, sym: b ?? null };
+    if (TABS.includes(a)) return { kind: 'complex', id: a, sym: b ?? null, pchange: (b && c) || null };
     return { kind: 'missing', path: route.parts.join('/') };
   });
 
@@ -96,9 +100,10 @@
   let tcga = $state(null);
   $effect(() => {
     const s = sym;
-    gene = null; tcga = null;
+    gene = null; tcga = null; geneRefs = {};
     if (!s || !DATA_GENES.includes(s)) return;
     data.gene(s).then((g) => { if (sym === s) gene = g; });
+    data.geneRefs(s).then((r) => { if (sym === s) geneRefs = r; }).catch(() => {});
     data.tcga(s).then((t) => { if (sym === s) tcga = t; });
   });
 
@@ -118,11 +123,17 @@
       .slice(0, 6);
   });
 
+  // Variant named in the route: germline (ClinVar/UniProt) and/or TCGA somatic.
   const variant = $derived.by(() => {
-    if (view.kind !== 'gene' || !view.pchange || !gene) return null;
+    if (!view.pchange || !gene) return null;
     const q = view.pchange;
-    return gene.variants.find((v) => v.p === q || v.mane === q) ?? 'none';
+    const germ = gene.variants.find((v) => v.p === q || v.mane === q) ?? null;
+    const som = tcga?.variants.find((v) => v.p === q || v.mane === q) ?? null;
+    if (!germ && !som) return 'none';
+    return { ...(germ ?? som), germ, som };
   });
+  const variantBase = $derived(view.kind === 'complex' ? view.id : 'gene');
+  function selectVariant(p) { if (p && sym) go(`${variantBase}/${sym}/${p}`); }
 
   // ---- motion --------------------------------------------------------------
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -256,22 +267,20 @@
         </p>
       {/if}
 
-      {#if view.kind === 'gene' && view.pchange}
-        <div class="variant card-inset">
-          {#if variant === 'none'}
-            <p><b class="mono">{view.pchange}</b> is not among the {gene.variants.length} mapped {s.symbol} variants.</p>
-          {:else if variant}
-            <h3 class="mono">{variant.p}</h3>
-            {#if variant.mane && variant.mane !== variant.p}<p class="muted mono">MANE: {variant.mane}</p>{/if}
-            <dl>
-              <dt>Genomic</dt><dd class="mono">{variant.g ?? '—'}</dd>
-              <dt>Consequence</dt><dd>{variant.csq?.join(', ') ?? variant.cls}</dd>
-              <dt>ClinVar</dt><dd>{variant.cv?.germ?.c ?? variant.cv?.onc?.c ?? '—'}</dd>
-              <dt>Citations</dt><dd>{variant.cit.length}</dd>
-            </dl>
-            <p class="muted small">Full mutation panel with tiered citations: next step.</p>
-          {/if}
-        </div>
+      <h3 class="sub">Domain map & mutations</h3>
+      <Lollipop {gene} {tcga} color={colorOf(s.symbol)} selectedP={view.pchange} onselect={selectVariant} />
+
+      {#if view.pchange}
+        {#key view.pchange}
+          <div in:fly={{ y: 14, duration: ms(420), easing: backOut }}>
+            {#if variant === 'none'}
+              <p class="variant"><b class="mono">{view.pchange}</b> is not among the mapped {s.symbol} variants.</p>
+            {:else if variant}
+              <MutationPanel {variant} {gene} {tcga} {refs} symbol={s.symbol} civicGene={gene.civic ?? []}
+                             closeHref={href(variantBase, s.symbol)} onselect={selectVariant} />
+            {/if}
+          </div>
+        {/key}
       {/if}
 
       <h3 class="sub">ClinVar & UniProt variants <span class="muted num">({Math.round(totalT.current)})</span></h3>
@@ -309,7 +318,25 @@
         <p class="muted small">Protein-affecting mutations, one count per patient; denominator is patients profiled for {s.symbol}. Cancer types with n ≥ 50 shown; bars are scaled to 25%.</p>
       {/if}
 
-      <div class="pending">Domain map and lollipop plot: <code>Lollipop.svelte</code> (next)</div>
+      {#if gene.civic?.length}
+        <h3 class="sub">Clinical evidence · CIViC <span class="muted num">({gene.civic.length})</span></h3>
+        <p class="muted small">Accepted CIViC evidence about {s.symbol} as a whole (a category such as loss or inactivating
+          mutation), not about any single variant.</p>
+        <ul class="civic">
+          {#each gene.civic as e (e.eid)}
+            <li>
+              <div class="civic-top">
+                <span class="lvl lvl-{e.level}" title="CIViC evidence level {e.level}">{e.level}</span>
+                <b>{e.civic_variant}</b>
+                <span class="muted">· {e.type} · {e.significance}</span>
+              </div>
+              <div class="civic-dis">{e.disease}{#if e.therapies}{' · '}<i>{e.therapies}</i>{/if}</div>
+              <div class="small">{@render cite([e.pmid])} · <a href={e.url} target="_blank" rel="noopener">EID{e.eid}</a></div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
     {/if}
   </section>
 {/snippet}
@@ -493,6 +520,7 @@
   main { padding: 24px clamp(16px, 4vw, 40px) 40px; max-width: 1440px; margin: 0 auto; }
 
   .arena { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(340px, 1fr); gap: 28px; align-items: start; }
+  .arena > * { min-width: 0; }
   .arena .stage {
     position: sticky; top: 76px; border-radius: 22px;
     background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--surface) 90%, transparent), transparent 70%);
@@ -504,7 +532,7 @@
   .deck { display: grid; }
   .deck > :global(*) { grid-area: 1 / 1; }
   @media (max-width: 960px) {
-    .arena { grid-template-columns: 1fr; }
+    .arena { grid-template-columns: minmax(0, 1fr); }
     .arena .stage { position: relative; top: 0; }
   }
 
@@ -593,6 +621,12 @@
   .stack-legend { list-style: none; padding: 0; margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; }
   .stack-legend .dot { margin-right: 5px; }
 
+  .civic { list-style: none; padding: 0; margin: 6px 0 0; display: grid; gap: 10px; }
+  .civic li { font-size: 13.5px; }
+  .civic-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .civic-dis { color: var(--ink-2); margin-top: 2px; }
+  .lvl { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 6px; font-weight: 700; font-size: 12px; color: #fff; background: var(--ink-3); }
+  .lvl-A { background: #1f7a4d; } .lvl-B { background: #2f6fd6; } .lvl-C { background: #7a5cc7; } .lvl-D { background: #b0703a; } .lvl-E { background: #8a8f98; }
   .freq { margin: 0 0 8px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
   .freq b { font-size: 26px; letter-spacing: -0.02em; }
   .freq span { font-size: 13px; }
@@ -609,14 +643,8 @@
   .studies .bar span { display: block; height: 8px; border-radius: 4px; background: var(--c-tcga); min-width: 2px; }
   .studies .num { text-align: right; width: 56px; padding-left: 8px; }
 
-  .variant { margin: 0 0 8px; padding: 14px 16px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
-  .variant h3 { font-size: 18px; }
-  .variant p { margin: 4px 0; }
-  dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 14px; margin: 10px 0 0; font-size: 13.5px; }
-  dt { color: var(--ink-3); }
-  dd { margin: 0; overflow-wrap: anywhere; }
+  .variant { margin: 12px 0 8px; padding: 14px 16px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); }
 
-  .pending { margin-top: 22px; padding: 14px; border: 1px dashed var(--line-2); border-radius: 10px; color: var(--ink-3); font-size: 13px; text-align: center; }
 
 
   .mouse-list { list-style: none; padding: 0; margin: 0; }

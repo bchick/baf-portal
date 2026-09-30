@@ -17,8 +17,10 @@ from collections import Counter, defaultdict
 import yaml
 
 from . import fetch_cbioportal as cbio
+from . import fetch_civic as civic
 from . import fetch_clinvar as clinvar
 from . import fetch_interpro as interpro
+from . import fetch_litvar as litvar
 from . import fetch_uniprot as uniprot
 from . import project_coords as pc
 from . import refs as refs_mod
@@ -47,7 +49,8 @@ def small_spdi(spdi: str | None) -> bool:
     return len(parts) == 4 and len(parts[2]) + len(parts[3]) <= MAX_INDEL
 
 
-def build_gene(gene: str, acc: str, version: str, report_rows: list) -> tuple[dict, dict, set, dict]:
+def build_gene(gene: str, acc: str, version: str, report_rows: list, lit_recs: list[dict],
+               civic_gene: dict) -> tuple[dict, dict, set, dict]:
     print(f"[{gene}] UniProt {acc}", flush=True)
     entry = uniprot.fetch_entry(acc)
     entry["features"] = drop_blocked(entry["features"])
@@ -168,7 +171,9 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list) -> tuple[di
             variants[key] = {"k": key, "pos": f["start"], "end": f["end"], "ref": f.get("ref"),
                              "alt": f.get("alt"), "cls": "missense" if len(f.get("alt", "")) == 1 else "other",
                              "p": None, "up": up, "cit": cits}
-    # ClinVar submitter citations (tier 2: SCVs with >=1 star)
+    # ClinVar submitter citations: tier 2 for SCVs with >=1 star; expert-panel
+    # (3 stars, e.g. ClinGen VCEPs) and practice-guideline (4) SCVs are curated
+    # evidence and go to tier 1 with the rest of the curated sources.
     cited = clinvar.var_citations({v["cv"]["id"] for v in variants.values() if "cv" in v})
     scv = clinvar.scv_citations([vid for vid in cited]) if cited else {}
     for v in variants.values():
@@ -179,12 +184,38 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list) -> tuple[di
                 continue
             for p in a["pmids"]:
                 pmids.add(p)
-                v["cit"].append({"t": 2, "pmid": p, "src": "ClinVar", "sub": a["submitter"],
+                v["cit"].append({"t": 1 if a["stars"] >= 3 else 2, "pmid": p,
+                                 "src": "ClinVar expert panel" if a["stars"] == 3 else
+                                        "ClinVar practice guideline" if a["stars"] >= 4 else "ClinVar",
+                                 "sub": a["submitter"],
                                  "scv": a["scv"], "s": a["stars"], "cls": a["class"]})
-    for v in variants.values():  # de-duplicate citations per (tier, pmid, submitter)
+    # CIViC: variant-specific accepted evidence -> tier 1; categories
+    # (Mutation, Loss, ...) stay gene-level and are never attached to a variant.
+    civ_by_variant, civ_gene_level = civic.split(civic_gene, list(variants.values()), stats)
+    for k, items in civ_by_variant.items():
+        for e in items:
+            pmids.add(e["pmid"])
+            variants[k]["cit"].append({"t": 1, "pmid": e["pmid"], "src": "CIViC", "eid": e["eid"],
+                                       "level": e["level"], "type": e["type"], "significance": e["significance"],
+                                       "disease": e["disease"], "therapies": e["therapies"], "basis": e["basis"],
+                                       "url": e["url"]})
+    pmids.update(e["pmid"] for e in civ_gene_level)
+
+    # LitVar2: text-mined mentions -> tier 3, minus papers already cited above.
+    for k, hits in litvar.match(lit_recs, list(variants.values()), entry["sequence"], stats).items():
+        v = variants[k]
+        higher = {c["pmid"] for c in v["cit"]}
+        for h in hits:
+            if h["pmid"] in higher:
+                stats["litvar:already_higher_tier"] += 1
+                continue
+            pmids.add(h["pmid"])
+            v["cit"].append({"t": 3, "pmid": h["pmid"], "src": "LitVar2", "basis": h["basis"], "id": h["id"]})
+
+    for v in variants.values():  # de-duplicate citations per (tier, pmid, submitter / evidence item)
         seen, keep = set(), []
         for c in v["cit"]:
-            k = (c["t"], c["pmid"], c.get("sub"))
+            k = (c["t"], c["pmid"], c.get("sub"), c.get("eid"))
             if k not in seen:
                 seen.add(k)
                 keep.append(c)
@@ -219,6 +250,7 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list) -> tuple[di
         "projection": proj.info(),
         "features": [f for f in entry["features"] if f["type"] != "Natural variant"],
         "domains": domains,
+        "civic": civ_gene_level,
         "variants": sorted(variants.values(), key=lambda v: (v["pos"], v["k"])),
         "stats": dict(sorted(stats.items())),
     }
@@ -248,9 +280,17 @@ def main() -> int:
     report = []
     genes_meta = {}
     cohort_all = {}
+    gene_pmids = {}
+    # bulk sources are filtered for every curated subunit, so Phase 1 genes
+    # reuse the same cached extracts
+    subunits = {s["symbol"] for s in comp["subunits"]}
+    print("LitVar2 / CIViC", flush=True)
+    lit = litvar.fetch_genes(subunits)
+    lit_release = litvar.release()
+    civ = civic.fetch_genes(subunits)
     for gene, acc in GENES.items():
-        gj, oj, pm, cohort = build_gene(gene, acc, version, report)
-        all_pmids |= pm
+        gj, oj, pm, cohort = build_gene(gene, acc, version, report, lit[gene], civ[gene])
+        gene_pmids[gene] = pm
         cohort_all.update(cohort)
         write_json(out / f"{gene}.json", gj)
         write_json(odbl / f"{gene}.tcga.json", oj)
@@ -259,10 +299,15 @@ def main() -> int:
         print(f"[{gene}] {len(gj['variants'])} variants; TCGA {oj['k']}/{oj['n']}; {gj['stats']}", flush=True)
     for s in cohort_all.values():
         all_pmids.update(s["pmids"])
-    print(f"refs: resolving {len(all_pmids)} PMIDs", flush=True)
-    refs = refs_mod.resolve(all_pmids)
-    missing = sorted(all_pmids - set(refs), key=int)
-    write_json(out / "refs.json", refs)
+    # refs.json (loaded up front) holds composition + cohort papers; variant-level
+    # papers go to <GENE>.refs.json, loaded with the gene.
+    every = all_pmids.union(*gene_pmids.values())
+    print(f"refs: resolving {len(every)} PMIDs", flush=True)
+    refs = refs_mod.resolve(every)
+    missing = sorted(every - set(refs), key=int)
+    write_json(out / "refs.json", {p: refs[p] for p in all_pmids if p in refs})
+    for gene, pm in gene_pmids.items():
+        write_json(out / f"{gene}.refs.json", {p: refs[p] for p in pm if p in refs})
     write_json(out / "complexes.json", complexes_json(comp))
     write_json(odbl / "cohorts.json", cohort_all)
     manifest = {
@@ -275,6 +320,8 @@ def main() -> int:
             "ensembl_vep": {**pc.ensembl_release(), "license": "Apache-2.0 / open"},
             "cbioportal": {**cbio.release(), "studies": "*_tcga_pan_can_atlas_2018", "license": "ODbL-1.0",
                            "path": f"odbl/v{version}/"},
+            "litvar2": {**lit_release, "license": "public domain (NCBI)"},
+            "civic": {**civic.release(), "license": "CC0"},
             "pubmed": {"via": "NCBI ESummary", "resolved": len(refs), "unresolved": missing,
                        "retracted": sorted(p for p, r in refs.items() if r["retracted"])},
         },
