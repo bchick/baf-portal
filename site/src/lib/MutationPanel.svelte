@@ -10,8 +10,10 @@
   import { slide } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { CLASS_COLOR, classKey } from './colors.js';
+  import SuggestButton from './SuggestButton.svelte';
 
-  let { variant, gene, tcga = null, refs = {}, symbol, civicGene = [], closeHref, onselect = () => {} } = $props();
+  let { variant, gene, tcga = null, refs = {}, symbol, civicGene = [], closeHref, onselect = () => {},
+        dataVersion = null } = $props();
 
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   const dur = reduce ? 0 : 260;
@@ -128,7 +130,15 @@
         {#if legacy}<span class="mono" title="Legacy/cBioPortal numbering"> · legacy {legacy}</span>{/if}
       </p>
     </div>
-    <a class="close" href={closeHref} aria-label="Close variant">×</a>
+    <div class="head-actions">
+      <SuggestButton ctx={() => ({
+        subject: `${symbol} · ${variant.p ?? variant.up?.desc}`, section: 'Variant details & evidence', dataVersion,
+        current: [`Genomic: ${variant.g ?? '-'}`, variant.mane && `MANE: ${variant.mane}`,
+                  cv?.germ && `ClinVar: ${cv.germ.c} (${cv.germ.r})`, som && `TCGA: ${som.n_pat} patients`,
+                  `Citations: tier 1 ${live(t1)}, tier 2 ${live(t2)}, tier 3 ${live(t3)}`].filter(Boolean).join('\n'),
+      })} />
+      <a class="close" href={closeHref} aria-label="Close variant">×</a>
+    </div>
   </header>
 
   <!-- classification strip -->
@@ -312,6 +322,7 @@
   .eyebrow { margin: 0; font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
   h3 { font-size: 21px; margin: 2px 0 0; letter-spacing: -0.01em; }
   .aliases { margin: 2px 0 0; font-size: 13px; color: var(--ink-2); }
+  .head-actions { display: flex; align-items: flex-start; gap: 4px; }
   .close { font-size: 22px; line-height: 1; color: var(--ink-3); padding: 0 4px; align-self: start; }
   .close:hover { color: var(--ink); text-decoration: none; }
 

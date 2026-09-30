@@ -13,7 +13,10 @@ aligning the chain's modelled residues to the UniProt sequence (see
 uniprot_numbers; author numbering and SIFTS both proved unreliable). The
 browser uses `res` to morph a subunit's beads onto its domain map.
 
-    pixi run beads        # writes site/src/lib/models/{cBAF,PBAF,ncBAF}.json
+    pixi run beads        # writes site/src/lib/models/{cBAF,PBAF,ncBAF}.json + index.json
+
+index.json holds the small per-complex metadata (structure, chain symbols,
+ghosts) the select screen needs up front; the bead files are lazy-loaded.
 """
 from __future__ import annotations
 
@@ -116,7 +119,7 @@ def uniprot_numbers(pdb: str, chains: dict, seqs: dict[str, str]) -> dict[str, d
 
 
 def export(name: str, pdb: str, pmid: str, chains: dict, ghosts: list, rmsd: float | None,
-           numbering: dict[str, dict]) -> None:
+           numbering: dict[str, dict]) -> dict:
     out_chains, beads, res = [], [], []
     for i, (cid, c) in enumerate(sorted(chains.items())):
         cov = numbering[cid]["coverage"]
@@ -142,9 +145,12 @@ def export(name: str, pdb: str, pmid: str, chains: dict, ghosts: list, rmsd: flo
         if n["coverage"] is not None and (n["coverage"] < 0.9 or (n["sifts_agreement"] or 1) < 0.99):
             sa = "n/a" if n["sifts_agreement"] is None else f"{n['sifts_agreement']:.0%}"
             print(f"  {pdb} {cid} {chains[cid]['symbol']}: {n['coverage']:.0%} of beads aligned; SIFTS agrees on {sa}")
+    meta = {"complex": name, "pdb": pdb, "pmid": pmid,
+            "chains": [{"symbol": c["symbol"], "kind": c["kind"]} for c in out_chains], "ghosts": ghosts}
     print(f"{name} {pdb}: {len(out_chains)} chains, {len(beads) // 4} beads, "
           f"{sum(1 for r in res if r)} mapped to UniProt"
           + ("" if rmsd is None else f", superposed RMSD {rmsd:.2f} A"))
+    return meta
 
 
 def main() -> None:
@@ -163,6 +169,7 @@ def main() -> None:
         c["xyz"] = (c["xyz"] - center) @ Rv.T
     ref_anchor = anchor_atoms(ref)
 
+    index = {}
     for name, (pdb, pmid) in MODELS.items():
         chains, rmsd = loaded[name], None
         if name != REFERENCE:
@@ -197,7 +204,8 @@ def main() -> None:
                 g = next((g for g in layout["ghosts"] if g["slot"] == sl["slot"]), None) if name == REFERENCE else None
                 ghosts.append({"slot": sl["slot"], "members": sl["members"], "reason": f"not modelled in {pdb}",
                                "anchor_subunits": g["anchor_subunits"] if g else []})
-        export(name, pdb, pmid, chains, ghosts, rmsd, numbering[name])
+        index[name] = export(name, pdb, pmid, chains, ghosts, rmsd, numbering[name])
+    write_json(OUT / "index.json", index, compact=False)
 
 
 if __name__ == "__main__":

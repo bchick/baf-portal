@@ -12,15 +12,32 @@
   import Lollipop from './lib/Lollipop.svelte';
   import MutationPanel from './lib/MutationPanel.svelte';
   import MorphOverlay from './lib/MorphOverlay.svelte';
+  import SuggestButton from './lib/SuggestButton.svelte';
+  import SuggestSheet from './lib/SuggestSheet.svelte';
+  import { suggest, closeSuggest } from './lib/suggest.svelte.js';
   import { route, href, go } from './lib/router.svelte.js';
   import * as data from './lib/data.js';
   import { DATA_GENES } from './lib/data.js';
   import { colorOf, classKey, CLASS_ORDER, CLASS_COLOR } from './lib/colors.js';
 
-  const MODELS = Object.fromEntries(
-    Object.entries(import.meta.glob('./lib/models/*.json', { eager: true, import: 'default' }))
-      .map(([p, m]) => [p.match(/([^/]+)\.json$/)[1], m]),
-  );
+  // 3D models: the small index (structure, chain symbols) and cBAF's beads load
+  // up front; PBAF / ncBAF beads are separate chunks prefetched once idle.
+  import MODEL_INDEX from './lib/models/index.json';
+  import cBAFModel from './lib/models/cBAF.json';
+  const LAZY_MODELS = import.meta.glob(['./lib/models/*.json', '!./lib/models/cBAF.json', '!./lib/models/index.json'],
+    { import: 'default' });
+  let models = $state.raw({ cBAF: cBAFModel });
+  const loading = {};
+  function loadModel(id) {
+    if (models[id]) return Promise.resolve(models[id]);
+    const f = LAZY_MODELS[`./lib/models/${id}.json`];
+    if (!f) return Promise.reject(new Error(`no 3D model for ${id}`));
+    return (loading[id] ??= f().then((m) => { models = { ...models, [id]: m }; return m; }));
+  }
+  $effect(() => {
+    const idle = window.requestIdleCallback ?? ((cb) => setTimeout(cb, 1200));
+    idle(() => TABS.forEach((id) => loadModel(id).catch(() => {})));
+  });
   const TABS = ['cBAF', 'PBAF', 'ncBAF'];
   // Variant classes drawn on the lollipop (mirrors pipeline/build.py SHOWN).
   const SHOWN = new Set(['missense', 'truncating', 'inframe', 'splice', 'stop_lost']);
@@ -53,6 +70,13 @@
   const onStage = $derived(view.kind === 'select' || view.kind === 'complex');
   const stageId = $derived(view.kind === 'complex' ? view.id : pickId);
   $effect(() => { if (view.kind === 'complex') pickId = view.id; });
+  // Keep showing the last model until the requested one arrives (then it beams in).
+  let shownModel = $state.raw(cBAFModel);
+  $effect(() => {
+    const id = stageId;
+    if (models[id]) shownModel = models[id];
+    else loadModel(id).then((m) => { if (stageId === id) shownModel = m; }).catch(() => {});
+  });
 
   // Stage -> domain-map morph: Complex3D hands over the selected subunit's
   // bead positions; the overlay flies them to the Lollipop once it is ready.
@@ -82,7 +106,15 @@
     go(`${view.id}/${t}`);
   }
 
+  // Context for a "Suggest edit" button: what the section shows right now.
+  function sctx(subject, section, current) {
+    return () => ({ subject, section, dataVersion: manifest?.data_version,
+                    current: typeof current === 'function' ? current() : current });
+  }
+  const refList = (pmids) => [...new Set(pmids ?? [])].map((p) => `PMID ${p}`).join(', ');
+
   function onkey(e) {
+    if (suggest.open) { if (e.key === 'Escape') closeSuggest(); return; }
     if (e.target.closest?.('input, textarea')) return;
     if (e.key === 'Escape') {
       if (view.kind === 'complex' && view.sym) go(view.id);
@@ -97,7 +129,7 @@
 
   // Character-card stats, scaled against the largest complex.
   function stats(id) {
-    const c = comp.complexes[id], m = MODELS[id];
+    const c = comp.complexes[id], m = MODEL_INDEX[id];
     const inModel = new Set(m.chains.map((ch) => ch.symbol));
     return [
       { k: 'Subunit slots', v: c.slots.length, max: 12 },
@@ -218,6 +250,11 @@
           <div class="slot-name">
             {sl.slot}
             {#if sl.contested}<span class="chip warn" title="Literature disagrees; see notes">contested</span>{/if}
+            <span class="grow"></span>
+            <SuggestButton compact ctx={sctx(`${sl.members.join(' | ')} in ${c.id}`, `Complex composition · ${sl.slot} slot`,
+              () => [`Members: ${sl.members.join(', ')}`, sl.stoichiometry && `Stoichiometry: ${sl.stoichiometry}`,
+                     sl.contested && `Contested: ${(sl.contested_notes ?? []).map((n) => n.claim).join(' / ')}`,
+                     `Sources: ${refList(sl.pmids)}`].filter(Boolean).join('\n'))} />
           </div>
           <div class="members">
             {#each sl.members as m (m)}
@@ -239,7 +276,8 @@
       {/each}
     </ol>
     {#if c.absent?.length}
-      <p class="absent"><span class="muted">Not in {c.id}:</span> {c.absent.join(', ')}</p>
+      <p class="absent"><span class="muted">Not in {c.id}:</span> {c.absent.join(', ')}
+        <SuggestButton compact ctx={sctx(c.id, 'Subunits absent from this complex', `Not in ${c.id}: ${c.absent.join(', ')}`)} /></p>
     {/if}
     <p class="legend"><span class="dot"></span> mutation data available (Phase 0: {DATA_GENES.join(', ')})</p>
   </section>
@@ -249,6 +287,13 @@
   {@const sl = slotFor(c, s.symbol)}
   <section class="card panel">
     <header class="panel-head">
+      <div class="head-suggest">
+        <SuggestButton ctx={sctx(s.symbol, 'Subunit identity (name, aliases, identifiers)',
+          () => [`Symbol: ${s.symbol}${s.common_name ? ` (${s.common_name})` : ''}`, `Name: ${s.name}`,
+                 `UniProt: ${s.uniprot} (${s.uniprot_length} aa)`, `HGNC: ${s.hgnc_id}`,
+                 `Aliases: ${(s.aliases ?? []).join(', ') || '-'}`,
+                 `Previous symbols: ${(s.previous_symbols ?? []).join(', ') || '-'}`].join('\n'))} />
+      </div>
       <p class="eyebrow">
         {#if c}<a href={href(c.id)}>← {c.id}</a> · {/if}
         {sl ? sl.slot : 'subunit'}
@@ -267,11 +312,14 @@
     {#if sl && sl.members.length > 1}
       <p class="paralogs">Shares the <b>{sl.slot}</b> slot with
         {#each sl.members.filter((m) => m !== s.symbol) as m, i}{#if i}, {/if}<a href={href(c.id, m)}>{m}</a>{/each}
-        {@render cite(sl.pmids)}</p>
+        {@render cite(sl.pmids)}
+        <SuggestButton compact ctx={sctx(`${s.symbol} in ${c.id}`, `Complex membership · ${sl.slot} slot`,
+          () => `Slot ${sl.slot} in ${c.id}: ${sl.members.join(', ')}\nSources: ${refList(sl.pmids)}`)} /></p>
     {/if}
 
     {#if !DATA_GENES.includes(s.symbol)}
-      <p class="empty">Mutation data for {s.symbol} arrives in Phase 1.</p>
+      <p class="empty">Mutation data for {s.symbol} arrives in Phase 1.
+        <SuggestButton label="Suggest data to include" ctx={sctx(s.symbol, 'Mutation and disease data', 'Not yet available (Phase 1)')} /></p>
     {:else if !gene}
       <p class="empty">Loading {s.symbol} variants…</p>
     {:else}
@@ -283,7 +331,13 @@
         </p>
       {/if}
 
-      <h3 class="sub">Domain map & mutations</h3>
+      <div class="sub-row">
+        <h3 class="sub">Domain map & mutations</h3>
+        <SuggestButton ctx={sctx(s.symbol, 'Domain map & mutations',
+          () => 'Domains: ' + (gene.features.filter((f) => f.type === 'Domain' || f.type === 'Repeat')
+            .map((f) => `${f.desc} ${f.start}–${f.end}`).join('; ') || '-')
+            + `\nUniProt ${gene.uniprot.accession} release entry v${gene.uniprot.entry_version}; InterPro/Pfam where UniProt has none`)} />
+      </div>
       <Lollipop {gene} {tcga} color={colorOf(s.symbol)} selectedP={view.pchange} onselect={selectVariant}
                 awaitMorph={morphSrc?.sym === s.symbol} onready={(api) => (lolli = api)} />
 
@@ -294,13 +348,18 @@
               <p class="variant"><b class="mono">{view.pchange}</b> is not among the mapped {s.symbol} variants.</p>
             {:else if variant}
               <MutationPanel {variant} {gene} {tcga} {refs} symbol={s.symbol} civicGene={gene.civic ?? []}
+                             dataVersion={manifest?.data_version}
                              closeHref={href(variantBase, s.symbol)} onselect={selectVariant} />
             {/if}
           </div>
         {/key}
       {/if}
 
-      <h3 class="sub">ClinVar & UniProt variants <span class="muted num">({Math.round(totalT.current)})</span></h3>
+      <div class="sub-row">
+        <h3 class="sub">ClinVar & UniProt variants <span class="muted num">({Math.round(totalT.current)})</span></h3>
+        <SuggestButton ctx={sctx(s.symbol, 'ClinVar & UniProt variant summary',
+          () => CLASS_ORDER.map((k) => `${k}: ${classCounts[k]}`).join(', ') + ` (ClinVar ${manifest?.sources.clinvar.last_update ?? ''})`)} />
+      </div>
       <div class="stack" role="img" aria-label={CLASS_ORDER.map((k) => `${k} ${classCounts[k]}`).join(', ')}>
         {#each CLASS_ORDER as k}
           {#if classCounts[k]}<span style:flex-grow={classCounts[k]} style:background={CLASS_COLOR[k]}></span>{/if}
@@ -314,7 +373,12 @@
 
       {#if tcga}
         {@const [lo, hi] = wilson(tcga.k, tcga.n)}
-        <h3 class="sub">TCGA PanCancer Atlas</h3>
+        <div class="sub-row">
+          <h3 class="sub">TCGA PanCancer Atlas</h3>
+          <SuggestButton ctx={sctx(s.symbol, 'TCGA PanCancer Atlas frequency',
+            () => `${tcga.k} / ${tcga.n} patients (${pct(tcga.k / tcga.n)}); top: `
+              + topStudies.map((st) => `${st.cancer_type.toUpperCase()} ${st.k}/${st.n}`).join(', '))} />
+        </div>
         <p class="freq">
           <b class="num">{pct(freqT.current)}</b>
           <span class="num muted">{tcga.k.toLocaleString()} / {tcga.n.toLocaleString()} patients · 95% CI {pct(lo)}–{pct(hi)}</span>
@@ -336,7 +400,11 @@
       {/if}
 
       {#if gene.civic?.length}
-        <h3 class="sub">Clinical evidence · CIViC <span class="muted num">({gene.civic.length})</span></h3>
+        <div class="sub-row">
+          <h3 class="sub">Clinical evidence · CIViC <span class="muted num">({gene.civic.length})</span></h3>
+          <SuggestButton ctx={sctx(s.symbol, 'Clinical evidence (CIViC)',
+            () => gene.civic.map((e) => `EID${e.eid} ${e.civic_variant}: ${e.type} ${e.level}, ${e.significance}, ${e.disease} (PMID ${e.pmid})`).join('\n'))} />
+        </div>
         <p class="muted small">Accepted CIViC evidence about {s.symbol} as a whole (a category such as loss or inactivating
           mutation), not about any single variant.</p>
         <ul class="civic">
@@ -386,7 +454,7 @@
             {#each comp.complexes[id].slots.slice(0, 6) as sl}<i style:background={colorOf(sl.members[0])}></i>{/each}
           </span>
           <b>{id}</b>
-          <span class="muted">{MODELS[id].pdb}</span>
+          <span class="muted">{MODEL_INDEX[id].pdb}</span>
         </a>
       {/each}
       <a class="pick mouse" href={href('mouse')}>
@@ -403,6 +471,7 @@
 
 <svelte:window onkeydown={onkey} />
 <MorphOverlay bind:this={overlay} />
+<SuggestSheet />
 
 <header class="top">
   <a class="brand" href="#/">
@@ -436,11 +505,11 @@
   {:else if onStage}
     <div class="arena" class:selecting={view.kind === 'select'}>
       <div class="stage">
-        <Complex3D model={MODELS[stageId]} mode={view.kind === 'select' ? 'select' : 'complex'}
+        <Complex3D model={shownModel} mode={view.kind === 'select' ? 'select' : 'complex'}
                    selected={sym} highlight={hotList} complex={{ id: stageId, ...comp.complexes[stageId] }}
                    {onpick} onhover={(s) => (hot3d = s)} onmorphsource={startMorph} />
         <p class="stage-hint" class:gone={view.kind !== 'select'}>
-          {MODELS[stageId].pdb} · drag to rotate after selecting
+          {MODEL_INDEX[stageId].pdb} · drag to rotate after selecting
         </p>
       </div>
       <aside class="deck">
@@ -596,7 +665,11 @@
   .card-in .panel > :global(*:first-child) { animation-delay: 320ms; }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   @keyframes grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
-  .panel-head { margin-bottom: 14px; }
+  .panel-head { margin-bottom: 14px; position: relative; }
+  .head-suggest { position: absolute; top: -6px; right: -8px; }
+  .sub-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 22px 0 8px; }
+  .sub-row .sub { margin: 0; }
+  .grow { flex: 1; }
   .eyebrow { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-3); font-weight: 600; }
   h2 { font-size: 24px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   h2 .muted { font-weight: 500; font-size: 18px; }

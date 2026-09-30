@@ -1,0 +1,54 @@
+# Opened pre-filled from the portal's "Suggest edit" buttons (field ids match
+# the query parameters built in site/src/lib/SuggestSheet.svelte).
+name: Data correction or addition
+description: Correct, add or change information shown on BAF-portal
+title: "[Suggestion] "
+labels: ["data-suggestion", "needs-curation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping keep BAF-portal accurate. Every change is checked by
+        the curator against the cited source before it reaches the site.
+  - type: input
+    id: kind
+    attributes:
+      label: Kind of suggestion
+      description: Correction, Missing data, or Other
+    validations:
+      required: true
+  - type: input
+    id: subject
+    attributes:
+      label: Subunit / variant
+      placeholder: "SMARCB1 · p.Arg37His"
+    validations:
+      required: true
+  - type: input
+    id: section
+    attributes:
+      label: Section of the page
+  - type: textarea
+    id: current
+    attributes:
+      label: What the site shows now
+      render: text
+  - type: textarea
+    id: details
+    attributes:
+      label: What should change?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Source
+      description: PMID, DOI or link supporting the change. Suggestions without a source may take longer to review.
+  - type: input
+    id: page
+    attributes:
+      label: Page
+  - type: input
+    id: data_version
+    attributes:
+      label: Data version

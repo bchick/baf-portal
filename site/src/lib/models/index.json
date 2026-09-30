@@ -1,0 +1,341 @@
+{
+ "cBAF": {
+  "complex": "cBAF",
+  "pdb": "6LTJ",
+  "pmid": "32001526",
+  "chains": [
+   {
+    "symbol": "H33_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H4_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2A1_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2B11_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H33_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H4_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2A1_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2B11_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "SMARCA4",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "ACTL6A",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "ACTB",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "ARID1A",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCB1",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCC2",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCC2",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCD1",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCE1",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "DPF2",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "DNA",
+    "kind": "dna"
+   },
+   {
+    "symbol": "DNA",
+    "kind": "dna"
+   }
+  ],
+  "ghosts": [
+   {
+    "slot": "SS18",
+    "members": [
+     "SS18",
+     "SS18L1"
+    ],
+    "reason": "not modelled in 6LTJ",
+    "anchor_subunits": [
+     "ACTL6A",
+     "SMARCA4"
+    ]
+   },
+   {
+    "slot": "BCL7",
+    "members": [
+     "BCL7A",
+     "BCL7B",
+     "BCL7C"
+    ],
+    "reason": "not modelled in 6LTJ",
+    "anchor_subunits": [
+     "ACTB",
+     "ACTL6A"
+    ]
+   }
+  ]
+ },
+ "PBAF": {
+  "complex": "PBAF",
+  "pdb": "7VDV",
+  "pmid": "35477757",
+  "chains": [
+   {
+    "symbol": "SMARCA4",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "H4_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2A1_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2B11_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H32_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H4_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2A1_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2B11_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "DNA",
+    "kind": "dna"
+   },
+   {
+    "symbol": "DNA",
+    "kind": "dna"
+   },
+   {
+    "symbol": "H32_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "M",
+    "kind": "unassigned"
+   },
+   {
+    "symbol": "ACTL6A",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "ACTB",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "ARID2",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "PHF10",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "BRD7",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "U",
+    "kind": "unassigned"
+   },
+   {
+    "symbol": "SMARCB1",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCC2",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCC2",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCD1",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "SMARCE1",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "PBRM1",
+    "kind": "subunit"
+   }
+  ],
+  "ghosts": [
+   {
+    "slot": "BCL7",
+    "members": [
+     "BCL7A",
+     "BCL7B",
+     "BCL7C"
+    ],
+    "reason": "not modelled in 7VDV",
+    "anchor_subunits": []
+   }
+  ]
+ },
+ "ncBAF": {
+  "complex": "ncBAF",
+  "pdb": "9WBZ",
+  "pmid": "41402274",
+  "chains": [
+   {
+    "symbol": "SMARCA4",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "H4_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "Q6AZJ8_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2B11_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H32_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H4_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "Q6AZJ8_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "H2B11_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "DNA",
+    "kind": "dna"
+   },
+   {
+    "symbol": "DNA",
+    "kind": "dna"
+   },
+   {
+    "symbol": "H32_XENLA",
+    "kind": "histone"
+   },
+   {
+    "symbol": "ACTB",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "ACTL6A",
+    "kind": "subunit"
+   },
+   {
+    "symbol": "BCL7A",
+    "kind": "subunit"
+   }
+  ],
+  "ghosts": [
+   {
+    "slot": "BICRA",
+    "members": [
+     "BICRA",
+     "BICRAL"
+    ],
+    "reason": "not modelled in 9WBZ",
+    "anchor_subunits": []
+   },
+   {
+    "slot": "BRD9",
+    "members": [
+     "BRD9"
+    ],
+    "reason": "not modelled in 9WBZ",
+    "anchor_subunits": []
+   },
+   {
+    "slot": "SMARCC scaffold",
+    "members": [
+     "SMARCC1",
+     "SMARCC2"
+    ],
+    "reason": "not modelled in 9WBZ",
+    "anchor_subunits": []
+   },
+   {
+    "slot": "SMARCD",
+    "members": [
+     "SMARCD1",
+     "SMARCD2",
+     "SMARCD3"
+    ],
+    "reason": "not modelled in 9WBZ",
+    "anchor_subunits": []
+   },
+   {
+    "slot": "SS18",
+    "members": [
+     "SS18",
+     "SS18L1"
+    ],
+    "reason": "not modelled in 9WBZ",
+    "anchor_subunits": []
+   }
+  ]
+ }
+}
