@@ -13,6 +13,7 @@
 
   let {
     cartoon, model = null, complex = null, selected = null, highlight = null, mode = 'complex', scaleMode = 'fit',
+    compact = false,   // in a panel (Compare): no corner switches to keep clear of
     onpick = () => {}, onhover = () => {}, onmorphsource = null,
   } = $props();
 
@@ -68,7 +69,7 @@
     for (const side of ['L', 'R']) {
       const col = out.filter((l) => !l.inside && (l.anchor[0] < cartoon.center[0]) === (side === 'L'))
         .sort((a, b) => a.anchor[1] - b.anchor[1]);
-      let y = fy + (side === 'R' ? 86 : 24) / px;   // right column starts below the view/scale switches
+      let y = fy + (side === 'R' && !compact ? 86 : 24) / px;   // right column starts below the view/scale switches
       for (const l of col) {
         l.side = side;
         l.ty = Math.max(l.anchor[1], y);
@@ -105,7 +106,9 @@
   });
 
   // ---- export -----------------------------------------------------------------------
-  export function saveSvg() {
+  // Self-contained copy of the drawing (colours inlined), for Save SVG and the
+  // Compare page's combined figure.
+  export function exportNode() {
     const clone = svg.cloneNode(true);
     const cs = getComputedStyle(svg);
     clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -117,6 +120,11 @@
       .lead{stroke:#1b1f24;stroke-width:0.5;fill:none}.ghost circle{fill:none;stroke:#666;stroke-dasharray:4 3}
       .scalebar path{stroke:#1b1f24;stroke-width:1}`;
     clone.prepend(style);
+    return clone;
+  }
+
+  export function saveSvg() {
+    const clone = exportNode();
     const blob = new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' });
     const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${cartoon.complex}-${cartoon.pdb}-cartoon${scaleMode === 'shared' ? '-shared-scale' : ''}.svg` });
     a.click();
@@ -124,7 +132,7 @@
   }
 </script>
 
-<div class="cartoon2d" bind:clientWidth={width} class:focused={!!selected}>
+<div class="cartoon2d" bind:clientWidth={width} class:focused={!!selected} class:compact>
   <svg bind:this={svg} viewBox="{fx} {fy} {fs} {fs}" role="group" aria-label="{cartoon.complex} cartoon, front view of {cartoon.pdb}">
     <defs>
       <filter id="c2d-shadow" x="-10%" y="-10%" width="120%" height="120%">
@@ -199,6 +207,7 @@
 
 <style>
   .cartoon2d { position: relative; width: 100%; aspect-ratio: 1 / 1; max-height: calc(100vh - 120px); }
+  .cartoon2d.compact { max-height: none; }
   svg { width: 100%; height: 100%; display: block; overflow: visible; }
   .piece {
     stroke: var(--bead-ink); stroke-width: 1.1px; vector-effect: non-scaling-stroke; stroke-linejoin: round;

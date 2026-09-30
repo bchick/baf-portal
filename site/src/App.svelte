@@ -10,6 +10,7 @@
   import { Tween } from 'svelte/motion';
   import Complex3D from './lib/Complex3D.svelte';
   import Cartoon2D from './lib/Cartoon2D.svelte';
+  import Compare from './lib/Compare.svelte';
   import Lollipop from './lib/Lollipop.svelte';
   import MutationPanel from './lib/MutationPanel.svelte';
   import MorphOverlay from './lib/MorphOverlay.svelte';
@@ -40,10 +41,13 @@
   $effect(() => { try { localStorage.setItem('cartoonScale', cartoonScale); } catch {} });
   $effect(() => { try { localStorage.setItem('stageMode', viewMode); } catch {} });
   const showCartoon = $derived((viewMode === 'cartoon' || noGL) && view.kind === 'complex');
-  $effect(() => {
-    const id = view.kind === 'complex' ? view.id : null;
-    if (!id || !(viewMode === 'cartoon' || noGL) || cartoons[id]) return;
+  function loadCartoon(id) {
+    if (cartoons[id]) return;
     CARTOONS[`./lib/cartoons/${id}.json`]?.().then((c) => { cartoons = { ...cartoons, [id]: c }; });
+  }
+  $effect(() => {
+    if (view.kind === 'compare') TABS.forEach(loadCartoon);
+    else if (view.kind === 'complex' && (viewMode === 'cartoon' || noGL)) loadCartoon(view.id);
   });
   let cartoonEl = $state();
   const loading = {};
@@ -81,6 +85,7 @@
     const [a, b, c] = route.parts;
     if (!a) return { kind: 'select' };
     if (a === 'mouse') return { kind: 'mouse' };
+    if (a === 'compare') return { kind: 'compare' };
     if (a === 'gene' && b) return { kind: 'gene', sym: b, pchange: c ?? null };
     if (TABS.includes(a)) return { kind: 'complex', id: a, sym: b ?? null, pchange: (b && c) || null };
     return { kind: 'missing', path: route.parts.join('/') };
@@ -139,7 +144,7 @@
     if (e.target.closest?.('input, textarea')) return;
     if (e.key === 'Escape') {
       if (view.kind === 'complex' && view.sym) go(view.id);
-      else if (view.kind === 'complex') location.hash = '#/';
+      else if (view.kind === 'complex' || view.kind === 'compare') location.hash = '#/';
     } else if (view.kind === 'select' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
       const i = TABS.indexOf(pickId), d = e.key === 'ArrowRight' ? 1 : -1;
       pickId = TABS[(i + d + TABS.length) % TABS.length];
@@ -516,6 +521,8 @@
     {#each TABS as t}
       <a href={href(t)} class="tab" aria-current={view.id === t ? 'page' : undefined}>{t}</a>
     {/each}
+    <a href={href('compare')} class="tab" aria-current={view.kind === 'compare' ? 'page' : undefined}
+       title="cBAF, PBAF and ncBAF side by side">Compare</a>
     <a href={href('mouse')} class="tab mouse" aria-current={view.kind === 'mouse' ? 'page' : undefined}
        title="Characterized in mouse; inferred in human">esBAF · npBAF · nBAF</a>
   </nav>
@@ -581,6 +588,7 @@
             Each colour is the part of a subunit visible from this side; dashed circles are members not resolved in the structure.
             {#if cartoonScale === 'shared'}Same scale as the other complexes, aligned on the nucleosome.{/if}
             <button class="linkish" onclick={() => cartoonEl?.saveSvg()}>Save SVG</button>
+            · <a href={href('compare')}>Compare all three</a>
           </p>
         {:else}
           <p class="stage-hint" class:gone={view.kind !== 'select'}>
@@ -614,6 +622,8 @@
         <div class="card panel"><p>{view.sym} is not a curated BAF subunit.</p></div>
       {/if}
     </div>
+  {:else if view.kind === 'compare'}
+    <Compare {comp} {cartoons} modelIndex={MODEL_INDEX} ids={TABS} onopen={(id, s) => go(`${id}/${s}`)} />
   {:else if view.kind === 'mouse'}
     <div class="narrow">
       <section class="card panel">
