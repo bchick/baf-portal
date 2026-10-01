@@ -5,7 +5,7 @@ symbiosis workspace in `research/` (`sym -w research ready`); this file is the
 human-readable summary of where things stand and what is next.
 
 Last updated 2026-10-01. Position fix (`5cbf772`) and About page (`29c2532`)
-are committed locally on `main`, not yet pushed.
+are pushed to `main`.
 
 ## Blocked on you
 
@@ -54,9 +54,9 @@ are committed locally on `main`, not yet pushed.
 - [x] ~~Document filters, tiers and sources~~ (`T-8b1bd7ce`) and
       ~~About / how-to-cite page~~ (`T-61172302`) — `#/about`; footer now
       credits CIViC, LitVar2 and RCSB PDB too.
-- [ ] **Add a LICENSE file.** The footer and About page say "Code MIT ·
-      cartoons CC BY 4.0", but the repo has no LICENSE. Your call; needed
-      before going public.
+- [x] ~~Add a LICENSE file~~ — MIT for the code. The footer also says
+      "cartoons CC BY 4.0"; that is stated only in the footer, with no
+      licence file of its own.
 - [ ] **Confirm the Pages deploy is live and the weekly build runs**
       (`T-ddf57853`) — after the launch steps above.
 - [ ] **Feedback from 2–3 lab members** (`T-8c8b1910`), then fix what they hit.
