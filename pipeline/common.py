@@ -74,10 +74,17 @@ def _key(method: str, url: str, params, body) -> str:
     return hashlib.sha1(blob.encode()).hexdigest()
 
 
+def _backoff(attempt: int) -> float:
+    return min(120.0, 2.0 ** (attempt + 1))
+
+
 def fetch(url: str, *, params=None, json_body=None, data=None, method="GET",
           headers=None, cache_dir: str = "http", as_json=True, refresh=False,
-          retries: int = 5):
-    """HTTP with on-disk gzip cache in data/cache/<cache_dir>/ and per-host throttling."""
+          retries: int = 8):
+    """HTTP with on-disk gzip cache in data/cache/<cache_dir>/ and per-host throttling.
+
+    Transient failures back off 2, 4, 8 ... s, capped at 120 s (about 6 min over 8
+    attempts), so the weekly build rides out short Ensembl REST outages."""
     body = json_body if json_body is not None else data
     path = CACHE / cache_dir / (_key(method, url, params, body) + (".json.gz" if as_json else ".txt.gz"))
     if path.exists() and not refresh and not refreshing(cache_dir):
@@ -93,10 +100,10 @@ def fetch(url: str, *, params=None, json_body=None, data=None, method="GET",
             r = _session.request(method, url, params=params, json=json_body, data=data,
                                  headers=h, timeout=120)
         except requests.RequestException:
-            time.sleep(2 ** attempt)
+            time.sleep(_backoff(attempt))
             continue
         if r.status_code in (429, 500, 502, 503, 504):
-            time.sleep(float(r.headers.get("Retry-After", 2 ** attempt)))
+            time.sleep(float(r.headers.get("Retry-After", _backoff(attempt))))
             continue
         r.raise_for_status()
         txt = r.text
