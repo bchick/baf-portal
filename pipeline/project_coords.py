@@ -14,6 +14,12 @@ positions are never copied from a source's `proteinChange` string. Instead:
 4. If Ensembl has a transcript whose translation is identical to UniProt
    canonical (VEP `uniprot_isoform` == <ACC>-1), its protein_start is used as
    an independent cross-check of step 2.
+5. The plotted position is the residue the displayed protein HGVS names
+   (`align_to_label`): multi-residue substitutions are trimmed to the residues
+   that change, and where genomic 3'-shifting moved VEP's protein_start away
+   from the HGVS protein 3'-rule position (low-complexity runs), the position
+   follows the label. The residue the label names is asserted against UniProt;
+   `vpos` keeps VEP's position, where `ref` is anchored.
 
 GRCh37 inputs (TCGA via cBioPortal) are first lifted to GRCh38 with the
 Ensembl assembly-mapping endpoint and then take the same path.
@@ -247,6 +253,46 @@ def renumber_hgvsp(hgvsp: str, aln: Alignment) -> str | None:
     return new if ok else None
 
 
+_LEAD = re.compile(r"^p\.\(?(Ala|Arg|Asn|Asp|Cys|Gln|Glu|Gly|His|Ile|Leu|Lys|Met|Phe|Pro|Ser|Thr|Trp|Tyr|Val|Ter|Sec|Xaa)(\d+)")
+AA1 = {v: k for k, v in AA3.items()}
+
+
+def label_residue(hgvsp: str | None) -> tuple[str, int] | None:
+    """First residue a protein HGVS names, as (one-letter, position); None if
+    the string does not open with one (e.g. `p.?`, or VEP's malformed
+    `p.MetSerGlyArgGly1_?5`)."""
+    m = _LEAD.match(hgvsp or "")
+    return (AA1[m.group(1)], int(m.group(2))) if m else None
+
+
+def align_to_label(res: dict, useq: str) -> None:
+    """Make the plotted position (`u_pos`/`mane_pos`) the residue the label names."""
+    ref, alt = res["ref"], res["alt"]
+    if len(ref) == len(alt) > 1 and "-" not in ref + alt and "*" not in ref + alt:
+        lead = next((i for i in range(len(ref)) if ref[i] != alt[i]), None)
+        if lead is not None:                   # multi-nucleotide: keep only residues that change
+            tail = next(i for i in range(len(ref)) if ref[-1 - i] != alt[-1 - i])
+            res["ref"], res["alt"] = ref[lead:len(ref) - tail], alt[lead:len(alt) - tail]
+            res["u_pos"] += lead
+            res["mane_pos"] += lead
+            res["u_end"] = res["u_pos"] + len(res["ref"]) - 1
+            res["mane_end"] = res["mane_pos"] + len(res["ref"]) - 1
+    lab = label_residue(res.get("u_hgvsp"))
+    if not lab or lab[1] == res["u_pos"]:
+        return
+    aa, n = lab
+    try:
+        assert_ref(useq, n, aa)
+    except RefMismatch as e:
+        raise RefMismatch(f"label {res['u_hgvsp']}: {e}") from None
+    nums = [int(m.group(2)) for m in _POS.finditer(res["u_hgvsp"])]
+    mlab = label_residue(res.get("mane_hgvsp"))
+    res["vpos"] = res["u_pos"]
+    res["u_pos"], res["u_end"] = n, max(nums)
+    if mlab:
+        res["mane_pos"] = mlab[1]
+
+
 def classify(terms: list[str]) -> str:
     t = set(terms)
     if t & {"stop_gained", "frameshift_variant", "start_lost"}:
@@ -326,6 +372,11 @@ class GeneProjector:
         if mane.get("hgvsp"):
             res["u_hgvsp"] = renumber_hgvsp(mane["hgvsp"], self.aln)
             res["mane_hgvsp"] = mane["hgvsp"].split(":", 1)[-1]
+        try:
+            align_to_label(res, self.useq)
+        except RefMismatch as e:
+            res.update(status="label_mismatch", detail=str(e))
+            return res
         res["status"] = "ok"
         return res
 

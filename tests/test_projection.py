@@ -190,3 +190,37 @@ def test_ambiguous_or_unexplained_mismatch(monkeypatch):
     two = {"P0-2": UNI[:44] + "W" + UNI[45:], "P0-3": UNI[:44] + "W" + UNI[45:50]}
     assert _remap(monkeypatch, UNI, two, f)[0] == "uniprot_isoform_ambiguous"
     assert _remap(monkeypatch, UNI, {"P0-2": UNI}, f) == ("ref_mismatch", None)   # still a build failure
+
+
+# ---- plotted position follows the label --------------------------------------------------
+
+def _res(pos, ref, alt, p, cls="missense"):
+    return {"u_pos": pos, "u_end": pos + len(ref) - 1, "mane_pos": pos, "mane_end": pos + len(ref) - 1,
+            "ref": ref, "alt": alt, "class": cls, "u_hgvsp": p, "mane_hgvsp": p}
+
+
+def test_mnv_is_trimmed_to_the_changed_residue():
+    """VEP reports an MNV from the first codon it touches: LH->LN at 345 is H346N."""
+    seq = "A" * 344 + "LH" + "A" * 10
+    r = _res(345, "LH", "LN", "p.His346Asn")
+    pc.align_to_label(r, seq)
+    assert (r["u_pos"], r["u_end"], r["mane_pos"], r["ref"], r["alt"]) == (346, 346, 346, "H", "N")
+    assert "vpos" not in r
+
+
+def test_shifted_indel_follows_the_label_and_keeps_vep_position():
+    seq = "M" + "Q" * 20 + "P"
+    r = _res(15, "Q", "QQ", "p.Gln2_Gln15dup", cls="inframe")
+    pc.align_to_label(r, seq)
+    assert (r["u_pos"], r["u_end"], r["vpos"], r["mane_pos"]) == (2, 15, 15, 2)
+
+
+def test_label_naming_the_wrong_residue_fails():
+    with pytest.raises(pc.RefMismatch):
+        pc.align_to_label(_res(5, "Q", "QQ", "p.Pro3dup", cls="inframe"), "M" + "Q" * 10)
+
+
+def test_malformed_label_leaves_position_alone():
+    r = _res(1, "MSGRG", "-", "p.MetSerGlyArgGly1_?5", cls="truncating")
+    pc.align_to_label(r, "MSGRGAAAA")
+    assert r["u_pos"] == 1 and "vpos" not in r

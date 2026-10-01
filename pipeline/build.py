@@ -35,7 +35,7 @@ CBIO_COUNTED = {"Missense_Mutation", "Nonsense_Mutation", "Frame_Shift_Del", "Fr
                 "Translation_Start_Site"}
 SHOWN = {"missense", "truncating", "inframe", "splice", "stop_lost"}
 MAX_INDEL = 100
-FAIL_STATUSES = {"ref_mismatch", "mane_ref_mismatch", "crosscheck_mismatch"}
+FAIL_STATUSES = {"ref_mismatch", "mane_ref_mismatch", "crosscheck_mismatch", "label_mismatch"}
 
 
 def one_letter(r) -> str | None:
@@ -101,6 +101,8 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list, lit_recs: l
                              "csq": res["consequence"], "p": res.get("u_hgvsp"),
                              "mane": res.get("mane_hgvsp"), "c": res.get("mane_hgvsc"),
                              "mane_pos": res["mane_pos"], "cit": []}
+            if "vpos" in res:
+                variants[key]["vpos"] = res["vpos"]
         return variants[key]
 
     # ClinVar
@@ -134,7 +136,7 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list, lit_recs: l
         t = tcga_by_key.setdefault(key, {"k": key, "g": h, "pos": res["u_pos"], "end": res["u_end"],
                                          "ref": res["ref"], "alt": res["alt"], "cls": res["class"],
                                          "p": res.get("u_hgvsp"), "mane": res.get("mane_hgvsp"),
-                                         "patients": set(), "studies": defaultdict(set),
+                                         "vpos": res.get("vpos"), "patients": set(), "studies": defaultdict(set),
                                          "cbio_pc": set(), "cbio_type": set()})
         t["patients"].add(m["patientId"])
         t["studies"][m["studyId"]].add(m["patientId"])
@@ -264,7 +266,8 @@ def build_gene(gene: str, acc: str, version: str, report_rows: list, lit_recs: l
                           "n_pat": len(t["patients"]),
                           "studies": {s: len(p) for s, p in sorted(t["studies"].items())},
                           "cbio_pc": cbio_pc, "cbio_type": sorted(t["cbio_type"]),
-                          "legacy_differs": bool(ol and any(x != ol for x in cbio_pc))})
+                          "legacy_differs": bool(ol and any(x != ol for x in cbio_pc)),
+                          **({"vpos": t["vpos"]} if t["vpos"] else {})})
 
     gene_json = {
         "gene": gene, "data_version": version,

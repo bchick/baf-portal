@@ -39,10 +39,23 @@ def test_every_reference_residue_matches_uniprot(built):
         seq = g["uniprot"]["sequence"]
         for v in g["variants"]:
             if v.get("ref") and v["ref"] not in ("-", "*") and len(v["ref"]) == 1 and v.get("p"):
-                assert seq[v["pos"] - 1] == v["ref"], v["k"]
+                assert seq[v.get("vpos", v["pos"]) - 1] == v["ref"], v["k"]
         for v in built.tcga(gene)["variants"]:
             if v.get("ref") and len(v["ref"]) == 1 and v["ref"] not in ("-", "*"):
-                assert seq[v["pos"] - 1] == v["ref"], v["k"]
+                assert seq[v.get("vpos", v["pos"]) - 1] == v["ref"], v["k"]
+
+
+def test_plotted_position_is_the_residue_the_label_names(built):
+    """Regression: MNVs (VEP protein_start at the first codon touched) and
+    genomic 3'-shifted indels in repeats were plotted away from their label."""
+    from pipeline.project_coords import label_residue
+    for gene in built.genes():
+        seq = built.gene(gene)["uniprot"]["sequence"]
+        for v in built.gene(gene)["variants"] + built.tcga(gene)["variants"]:
+            lab = label_residue(v.get("p"))
+            if lab:
+                assert lab[1] == v["pos"], (gene, v["k"], v["p"], v["pos"])
+                assert lab[0] == "*" or seq[lab[1] - 1] == lab[0], (gene, v["k"])
 
 
 def test_arid1b_exon1_variants_are_present(built):
