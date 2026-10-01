@@ -9,20 +9,14 @@ are pushed to `main`.
 
 ## Blocked on you
 
-1. **AlphaFold jobs for the ncBAF base.** `data/predictions/alphafold_server_jobs.json`
-   holds two jobs, already validated against the 5,000-token limit:
-   - `ncbaf_base` (4,498 tokens) — SMARCC1 x2, SMARCD1, BRD9, BICRA 1100–1560,
-     plus SMARCA4 350–560 / ACTL6A / ACTB as anchors
-   - `ss18_arp` (1,611 tokens) — SS18 1–186 on the same ARP anchors, with BCL7A
-
-   Upload at alphafoldserver.com, unpack each result into
-   `data/predictions/<job name>/`, then say so. Import will superpose on the
-   anchor chains and add the subunits as `predicted` (paler, hatched, distinct
-   from the `placed` tier), then re-run `pixi run check-models`.
-
-   Until then ncBAF's BICRA, BRD9, SMARCC, SMARCD and SS18 stay as chips —
-   there is no better experimental ncBAF structure; all 8 PDB entries resolve
-   only the ATPase and ARP modules.
+1. ~~AlphaFold jobs for the ncBAF base~~ — **done, nothing ships.** Two rounds
+   (whole base + SS18; then BRD9/BICRA/BICRAL/SMARCD1 with a BRD7 control).
+   The BRD7 + SMARCD1 positive control recovers 0% of the 7VDV contacts, so
+   sub-assembly predictions cannot be validated here. One confident,
+   reproducible interface (BRD9 390–448 : BICRA 1080–1122) is not reproduced
+   with paralog BICRAL; a hypothesis, not a placement. Full numbers in
+   `reports/af_assessment_2026-10-01.md` (local; `reports/` is gitignored).
+   ncBAF's BICRA, BRD9, SMARCC, SMARCD and SS18 stay as chips.
 
 2. **Launch decisions.** Confirmed current state: GitHub Pages is *not* enabled
    (API 404) and *no* repository variables are set.
