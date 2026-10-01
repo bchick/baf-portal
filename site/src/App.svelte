@@ -3,7 +3,7 @@
   // and the complex view, so moving between them (and into a subunit) is a
   // continuous camera move, never a page swap. The side panel cross-fades.
   //
-  // Routes: #/ (select) · #/cBAF · #/cBAF/SMARCA4 · #/gene/SMARCA4[/p.Arg1192His]
+  // Routes: #/ (select) · #/cBAF · #/cBAF/SMARCA4 · #/gene/SMARCA4[/p.Arg1192His] · #/about
   // Keys:   ←/→ choose complex · Enter select · Esc back out one level
   import { fly, fade } from 'svelte/transition';
   import { backOut, cubicOut } from 'svelte/easing';
@@ -24,6 +24,7 @@
   import { tip } from './lib/tip.js';
   import { CLINVAR_TIP, cancerName } from './lib/glossary.js';
   import CitationsSheet from './lib/CitationsSheet.svelte';
+  import About from './lib/About.svelte';
 
   // 3D models: the small index (structure, chain symbols) and cBAF's beads load
   // up front; PBAF / ncBAF beads are separate chunks prefetched once idle.
@@ -88,6 +89,7 @@
     const [a, b, c] = route.parts;
     if (!a) return { kind: 'select' };
     if (a === 'compare') return { kind: 'compare' };
+    if (a === 'about') return { kind: 'about' };
     if (a === 'gene' && b) return { kind: 'gene', sym: b, pchange: c ?? null };
     if (TABS.includes(a)) return { kind: 'complex', id: a, sym: b ?? null, pchange: (b && c) || null };
     return { kind: 'missing', path: route.parts.join('/') };
@@ -191,7 +193,7 @@
     if (e.target.closest?.('input, textarea')) return;
     if (e.key === 'Escape') {
       if (view.kind === 'complex' && view.sym) go(view.id);
-      else if (view.kind === 'complex' || view.kind === 'compare') location.hash = '#/';
+      else if (view.kind === 'complex' || view.kind === 'compare' || view.kind === 'about') location.hash = '#/';
     } else if (view.kind === 'select' && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
       const i = TABS.indexOf(pickId), d = e.key === 'ArrowRight' ? 1 : -1;
       pickId = TABS[(i + d + TABS.length) % TABS.length];
@@ -570,6 +572,8 @@
     {/each}
     <a href={href('compare')} class="tab" aria-current={view.kind === 'compare' ? 'page' : undefined}
        title="cBAF, PBAF and ncBAF side by side">Compare</a>
+    <a href={href('about')} class="tab" aria-current={view.kind === 'about' ? 'page' : undefined}
+       title="Data sources, filters, evidence tiers and how to cite">About</a>
   </nav>
   <button class="btn theme" onclick={() => (theme = THEMES[(THEMES.indexOf(theme) + 1) % 3])}
           aria-label="Colour theme: {theme}. Change.">
@@ -669,6 +673,8 @@
     </div>
   {:else if view.kind === 'compare'}
     <Compare {comp} {cartoons} modelIndex={MODEL_INDEX} ids={TABS} onopen={(id, s) => go(`${id}/${s}`)} />
+  {:else if view.kind === 'about'}
+    <About {manifest} {refs} modelIndex={MODEL_INDEX} complexIds={TABS} compositionVersion={comp?.version} />
   {:else if view.kind === 'missing'}
     <div class="card panel narrow"><p>No page at <code>#/{view.path}</code>. <a href={href('cBAF')}>Go to cBAF</a>.</p></div>
   {/if}
@@ -685,9 +691,10 @@
       UniProt {src.uniprot.release} (CC BY 4.0) · InterPro {src.interpro.interpro.version} / Pfam {src.interpro.pfam.version} (CC0) ·
       ClinVar {src.clinvar.last_update.slice(0, 10)} (public domain) · Ensembl VEP {src.ensembl_vep.software} ·
       cBioPortal {src.cbioportal.portal_version}, TCGA PanCancer Atlas (ODbL 1.0, <code>{src.cbioportal.path}</code>) ·
-      PubMed via NCBI ESummary
+      CIViC (CC0) · LitVar2 (public domain) · RCSB PDB (CC0) · PubMed via NCBI ESummary
     </p>
-    <p class="muted">Code MIT · cartoons CC BY 4.0 · COSMIC and OncoKB are linked, not redistributed.</p>
+    <p class="muted">Code MIT · cartoons CC BY 4.0 · COSMIC and OncoKB are linked, not redistributed. ·
+      <a href={href('about')}>About the data and how to cite</a></p>
   </footer>
 {/if}
 
