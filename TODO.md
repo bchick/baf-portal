@@ -4,7 +4,7 @@ Working notes for picking this back up. The authoritative checklist is the
 symbiosis workspace in `research/` (`sym -w research ready`); this file is the
 human-readable summary of where things stand and what is next.
 
-Last updated 2026-10-01. Position fix (`5cbf772`) and About page (`29c2532`)
+Last updated 2026-10-01 (site live). Position fix (`5cbf772`) and About page (`29c2532`)
 are pushed to `main`.
 
 ## Blocked on you
@@ -18,18 +18,13 @@ are pushed to `main`.
    `reports/af_assessment_2026-10-01.md` (local; `reports/` is gitignored).
    ncBAF's BICRA, BRD9, SMARCC, SMARCD and SS18 stay as chips.
 
-2. **Launch decisions.** Confirmed current state: GitHub Pages is *not* enabled
-   (API 404) and *no* repository variables are set.
-   - [ ] Make `bchick/baf-portal` public (private + free plan cannot use Pages;
-         Suggest-edit also needs a public repo to accept outside issues).
-         **Check the git history for anything that should not go public first.**
-         The `lit/` PDFs were never committed.
-   - [ ] Settings → Pages → Source = **GitHub Actions**
-   - [ ] Set repo variable `DEPLOY_PAGES=true`
-   - [ ] Decide the **NCBI contact email** (repo secret; the weekly build calls
-         NCBI APIs and they ask for a contact)
-   - [ ] Run the data workflow once manually with "deploy" checked
-   - Site lands at https://bchick.github.io/baf-portal/, then rebuilds Mondays.
+2. ~~Launch~~ — **live 2026-10-01 at https://www.brentchick.com/baf-portal/**
+   (the account's user-site custom domain applies; bchick.github.io/baf-portal
+   redirects there). Repo public, Pages source = Actions, `DEPLOY_PAGES=true`,
+   NCBI contact left as bchick@salk.edu. First deploy needed two fixes:
+   longer HTTP backoff for Ensembl outages (`2e7601f`) and pausing the hidden
+   3D loop behind the cartoon (`b5ac0be`). Still to see: the first scheduled
+   Monday rebuild. Optional: enforce HTTPS on `bchick/bchick.github.io`.
 
 3. **Test on a real low-end phone.** `SMARCA4.json` is 3.0 MB raw / 306 KB
    gzipped, almost all variant records. Bandwidth is fine (Pages compresses),
@@ -51,8 +46,8 @@ are pushed to `main`.
 - [x] ~~Add a LICENSE file~~ — MIT for the code. The footer also says
       "cartoons CC BY 4.0"; that is stated only in the footer, with no
       licence file of its own.
-- [ ] **Confirm the Pages deploy is live and the weekly build runs**
-      (`T-ddf57853`) — after the launch steps above.
+- [ ] **Confirm the weekly build runs** (`T-ddf57853`) — deploy confirmed
+      live 2026-10-01; check the Monday 06:17 UTC run.
 - [ ] **Feedback from 2–3 lab members** (`T-8c8b1910`), then fix what they hit.
 - [ ] **Announce** (`T-0bfe53ed`).
 
