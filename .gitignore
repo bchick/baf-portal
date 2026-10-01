@@ -18,3 +18,8 @@ reports/
 # curator reference figures (Illustrate renders)
 /fig1_baf_structure*.png
 /fig1_baf_structure*.pnm
+
+# AlphaFold Server downloads (hundreds of MB; job inputs stay tracked)
+data/predictions/*/
+data/predictions/*.zip
+data/predictions/terms_of_use.md
