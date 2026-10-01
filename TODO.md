@@ -4,8 +4,8 @@ Working notes for picking this back up. The authoritative checklist is the
 symbiosis workspace in `research/` (`sym -w research ready`); this file is the
 human-readable summary of where things stand and what is next.
 
-Last updated 2026-09-30, end of session. Everything below is pushed to
-`main` (latest commit `26f593c`), CI green.
+Last updated 2026-10-01. Position fix (`5cbf772`) and About page (`29c2532`)
+are committed locally on `main`, not yet pushed.
 
 ## Blocked on you
 
@@ -45,18 +45,18 @@ Last updated 2026-09-30, end of session. Everything below is pushed to
 
 ## Next up (in rough priority order)
 
-- [ ] **Fix the MNV off-by-one and decide the position-vs-label convention** —
-      came out of the spot-check below; the one real bug found. 18 variants
-      across 7 genes, plus ~590 3'-shift cases that need a convention call.
+- [x] ~~Fix the MNV off-by-one and decide the position-vs-label convention~~
+      — decided: **the dot follows the label**. MNVs are trimmed to the
+      changed residue; 3'-shifted indels/frameshifts plot at the first residue
+      the HGVS protein label names (639 records), checked against UniProt
+      (`label_mismatch` fails the build); `vpos` keeps VEP's position.
 - [x] ~~Spot-check variant projection~~ (`T-3ff5a0be`) — done; findings below.
-- [ ] **Document filters, pathogenicity tiers and each source** (`T-8b1bd7ce`,
-      writing). The tooltips added this session cover the codes inline; this
-      task is the longer-form explanation.
-- [ ] **About / how-to-cite page + data-source attribution** (`T-61172302`,
-      writing). Needed before public launch: UniProt is CC BY 4.0 (attribution
-      required), TCGA via cBioPortal is ODbL (already isolated under
-      `data/odbl/` with its own licence file). Confirm the footer credits every
-      source.
+- [x] ~~Document filters, tiers and sources~~ (`T-8b1bd7ce`) and
+      ~~About / how-to-cite page~~ (`T-61172302`) — `#/about`; footer now
+      credits CIViC, LitVar2 and RCSB PDB too.
+- [ ] **Add a LICENSE file.** The footer and About page say "Code MIT ·
+      cartoons CC BY 4.0", but the repo has no LICENSE. Your call; needed
+      before going public.
 - [ ] **Confirm the Pages deploy is live and the weekly build runs**
       (`T-ddf57853`) — after the launch steps above.
 - [ ] **Feedback from 2–3 lab members** (`T-8c8b1910`), then fix what they hit.
