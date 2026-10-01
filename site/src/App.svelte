@@ -614,7 +614,7 @@
           <Complex3D model={shownModel} mode={view.kind === 'select' ? 'select' : 'complex'}
                      selected={sym} highlight={hotList} complex={{ id: stageId, ...comp.complexes[stageId] }}
                      {onpick} onhover={(s) => (hot3d = s)} onmorphsource={showCartoon ? null : startMorph}
-                     onglfail={() => (noGL = true)} />
+                     onglfail={() => (noGL = true)} paused={showCartoon} />
         </div>
         {#if showCartoon && cartoons[stageId]}
           <div class="layer cartoon-layer" transition:fade={{ duration: ms(320) }}>

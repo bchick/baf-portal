@@ -25,6 +25,7 @@
   let {
     model, mode = 'complex', selected = null, highlight = null, complex = null,
     onpick = () => {}, onhover = () => {}, onmorphsource = () => {}, onglfail = () => {},
+    paused = false,   // hidden behind the cartoon: render nothing (unseen frames are not paced)
   } = $props();
 
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -535,10 +536,14 @@
       console.info(`3D view: frames averaged ${slowEma.toFixed(0)} ms, rendering at 1x resolution`);
     }
   }
-  function kick() { if (!raf && gl) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  function kick() { if (!raf && gl && !paused) { last = performance.now(); raf = requestAnimationFrame(frame); } }
+  $effect(() => {
+    if (paused) { cancelAnimationFrame(raf); raf = 0; } else kick();
+  });
 
   function frame(now) {
     raf = 0;
+    if (paused) return;
     const raw = now - last;
     const dt = Math.min(1 / 30, raw / 1000); last = now;
     if (raw > 0 && raw < 250) watchFrameTime(raw);
